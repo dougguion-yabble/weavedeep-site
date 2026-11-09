@@ -1,0 +1,1791 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Weave</title>
+<style>
+  :root{
+    --bg:#09090c; --panel:#121019; --panel2:#191527; --ink:#f2ebdd; --body:#cbc5b8;
+    --mut:#9c958a; --faint:#6d665a; --line:#221d16; --line2:#332c20; --gold:#d8b06a;
+    --blue:#5aa0e0; --green:#6fd89a; --amber:#e6b35a; --violet:#b79be6; --tension:#e8705a;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; background:var(--bg); color:var(--body); font-family:var(--sans);
+    font-size:17px; line-height:1.72; -webkit-font-smoothing:antialiased; overflow-x:hidden}
+  canvas#weave{position:fixed; inset:0; width:100%; height:100%; z-index:0; pointer-events:none}
+  .glow{position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:radial-gradient(1200px 820px at 50% 4%, #241a10 0%, rgba(9,9,12,0) 60%)}
+  .wrap{position:relative; z-index:2}
+  .col{max-width:780px; margin:0 auto; padding:0 26px}
+  .wide{max-width:1320px; margin:0 auto; padding:0 40px}
+  /* editorial two-column: heading rail left, body right, spread across the page */
+  .col.ed{max-width:1340px; display:grid; grid-template-columns:minmax(250px,0.8fr) minmax(0,1.2fr); gap:72px; align-items:start}
+  .col.ed .ed-head{position:relative}
+  .col.ed .ed-head .eyebrow{margin-top:0}
+  .col.ed .ed-head h2{margin-bottom:0}
+  .col.ed .ed-body > :first-child{margin-top:0}
+  .col.ed .ed-body > :last-child{margin-bottom:0}
+  .col.ed .ed-body .vlist,.col.ed .ed-body .faq{max-width:none; margin:0}
+  .col.ed .ed-body .vitem:first-child{border-top:none; padding-top:0}
+  .hero .col{max-width:1180px}
+  .hero .lead{max-width:740px}
+  @media(max-width:900px){ .col.ed{display:block; max-width:820px} .col.ed .ed-head{margin-bottom:20px} }
+
+  nav{position:fixed; top:0; left:0; right:0; z-index:30; display:flex; justify-content:space-between;
+    align-items:center; padding:18px 30px; background:linear-gradient(rgba(9,9,12,.92),rgba(9,9,12,0))}
+  .mark{font-family:var(--serif); font-size:19px; letter-spacing:.26em; text-transform:uppercase; color:var(--gold); text-decoration:none}
+  .mark b{color:var(--amber); font-weight:400}
+  .navlinks{display:flex; gap:26px; align-items:center}
+  .navlinks a{color:var(--mut); text-decoration:none; font-size:14px}
+  .navlinks a:hover{color:var(--ink)}
+  .navlinks a.req{color:var(--ink); border:1px solid var(--line2); padding:7px 15px; border-radius:999px}
+  .navlinks a.req:hover{border-color:var(--amber); color:var(--amber)}
+
+  /* reveal */
+  .rv{opacity:0; transform:translateY(22px); transition:opacity .9s ease, transform .9s ease}
+  .rv.in{opacity:1; transform:none}
+  .rv.d1{transition-delay:.08s} .rv.d2{transition-delay:.16s} .rv.d3{transition-delay:.24s} .rv.d4{transition-delay:.32s}
+
+  .hero{min-height:96vh; display:flex; flex-direction:column; justify-content:center; padding:130px 0 80px}
+  .kicker{font-size:12.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--faint); margin-bottom:24px}
+  h1{font-family:var(--serif); font-weight:400; color:var(--ink); font-size:clamp(42px,7.4vw,72px);
+    line-height:1.02; letter-spacing:-.015em; margin:0 0 28px}
+  .lead{font-size:clamp(19px,2.2vw,22px); line-height:1.68; color:var(--body); max-width:660px}
+  .lead b{color:var(--ink); font-weight:600}
+  .scrollhint{margin-top:52px; font-size:12.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint)}
+  /* cinematic hero: the presence emerging */
+  .hero{position:relative; height:100vh; min-height:660px; overflow:hidden; display:block; padding:0;
+    background:radial-gradient(1100px 760px at 50% 20%, rgba(70,56,34,.28) 0%, rgba(9,9,12,0) 62%)}
+  #herocv{position:absolute; inset:0; width:100%; height:100%}
+  .hero-scrim{position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(760px 420px at 50% 76%, rgba(6,6,10,.72) 0%, rgba(6,6,10,0) 70%)}
+  .hero-ov{position:absolute; inset:0; z-index:4; pointer-events:none}
+  .h-eyebrow{position:absolute; top:16%; left:0; right:0; text-align:center; font-size:12.5px;
+    letter-spacing:.42em; text-transform:uppercase; color:var(--gold); opacity:0; transform:translateY(10px); transition:opacity 1.1s ease, transform 1.1s ease}
+  .h-lower{position:absolute; left:0; right:0; bottom:12%; text-align:center; padding:0 8%}
+  .h-title{margin:0 0 44px; font-family:var(--serif); font-weight:400; font-size:clamp(34px,6vw,72px); line-height:1.05; letter-spacing:-.012em; color:var(--ink);
+    opacity:0; transform:translateY(16px); transition:opacity 1.2s ease, transform 1.2s ease}
+  .h-title em{font-style:italic; color:#efdcad}
+  .h-sub{max-width:700px; margin:0 auto; font-family:var(--serif); font-style:italic; font-size:clamp(16px,2vw,21px); line-height:1.5; color:var(--mut);
+    opacity:0; transform:translateY(16px); transition:opacity 1.2s ease, transform 1.2s ease}
+  .h-scroll{position:absolute; bottom:5.5%; left:0; right:0; text-align:center; font-size:11px; letter-spacing:.3em; pointer-events:auto; cursor:pointer; text-decoration:none;
+    text-transform:uppercase; color:var(--faint); opacity:0; transition:opacity 1.4s ease}
+  .h-scroll .ln{display:block; width:1px; height:34px; margin:0 auto 12px; background:linear-gradient(var(--gold),transparent); opacity:.6}
+  .hero.show .h-eyebrow,.hero.show .h-title,.hero.show .h-sub,.hero.show .h-scroll{opacity:1; transform:none}
+
+  section{padding:88px 0; position:relative}
+  .divide{border-top:1px solid var(--line)}
+  .eyebrow{font-family:var(--serif); font-style:italic; font-size:19px; color:var(--amber); margin:0 0 18px}
+  h2{font-family:var(--serif); font-weight:400; color:var(--ink); font-size:clamp(29px,4.2vw,42px);
+    line-height:1.12; letter-spacing:-.01em; margin:0 0 24px}
+  p{margin:0 0 22px}
+  p.big{font-size:19.5px; color:var(--body)}
+  strong{color:var(--ink); font-weight:600}
+  .muted{color:var(--mut)}
+
+  /* two-column */
+  .viz #gather{width:100%; display:block}
+  .two{display:grid; grid-template-columns:1.05fr .95fr; gap:56px; align-items:center}
+  .two.rev .txt{order:2}
+
+  /* value list (the four) -- alternating, not a grid */
+  .vlist{max-width:820px; margin:0 auto}
+  .vitem{display:grid; grid-template-columns:44px 1fr; gap:22px; padding:30px 0; border-top:1px solid var(--line)}
+  .vitem:first-child{border-top:none}
+  .vnum{font-family:var(--serif); font-size:22px; color:var(--faint)}
+  .vitem h3{font-family:var(--serif); font-weight:400; font-size:24px; color:var(--ink); margin:0 0 10px; letter-spacing:-.01em}
+  .vitem p{font-size:16.5px; color:var(--body); margin:0}
+
+  /* the think stage */
+  .stage-sec{padding:70px 0 96px}
+  .stage{position:relative; height:640px; border:1px solid var(--line2); border-radius:20px;
+    background:linear-gradient(180deg, rgba(17,26,44,.55), rgba(11,18,34,.55)); overflow:hidden}
+  .stage .q{position:absolute; top:26px; left:0; right:0; text-align:center; font-family:var(--serif);
+    font-size:20px; color:var(--ink); padding:0 30px; letter-spacing:-.005em}
+  .stage .q .cur{color:var(--amber)}
+  .rec{position:absolute; width:132px; padding:11px 12px; border-radius:10px;
+    background:#0b1120; border:1px solid var(--line2); opacity:.4; transition:opacity .5s, border-color .5s, transform .5s}
+  .rec .rk{font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); margin-bottom:7px}
+  .rec .ln{height:5px; border-radius:3px; background:#1c2740; margin:5px 0}
+  .rec.lit{opacity:1; border-color:var(--blue); transform:translateY(-2px)}
+  .rec.cited{border-color:var(--amber); box-shadow:0 0 0 1px var(--amber)}
+  .rec.notice{border-color:var(--violet); opacity:1}
+  .stage svg.wire{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+  .stage svg.wire path{fill:none; stroke-width:1.4; opacity:.55;
+    stroke-dasharray:600; stroke-dashoffset:600; transition:stroke-dashoffset 1.1s ease}
+  .stage svg.wire path.on{stroke-dashoffset:0}
+  .ansbox{position:absolute; left:50%; top:52%; transform:translate(-50%,-50%); width:min(430px,84%);
+    background:#0d1626; border:1px solid var(--line2); border-radius:14px; padding:18px 20px;
+    opacity:0; transition:opacity .6s}
+  .ansbox.show{opacity:1}
+  .ansbox .a{font-size:15.5px; color:var(--body); line-height:1.55; margin:0}
+  .ansbox .a .cite{color:var(--amber); border-bottom:1px dashed rgba(230,179,90,.5); cursor:default}
+  .ansbox .tag{display:inline-flex; align-items:center; gap:6px; margin-top:12px; font-size:12px;
+    color:var(--green); opacity:0; transition:opacity .5s}
+  .ansbox .tag.show{opacity:1}
+  .ansbox .tag .dot{width:6px; height:6px; border-radius:50%; background:var(--green)}
+  .stage .noticelbl{position:absolute; font-size:12px; color:var(--violet); opacity:0; transition:opacity .5s}
+  .stage .noticelbl.show{opacity:1}
+  .stagecap{text-align:center; color:var(--mut); font-size:14.5px; margin-top:20px}
+  .stage #pcanvas{position:absolute; inset:0; width:100%; height:100%}
+  .p-state{position:absolute; top:20px; left:0; right:0; text-align:center; font-size:11px;
+    letter-spacing:.24em; text-transform:uppercase; color:var(--faint); z-index:2; transition:color .5s}
+  .p-q{position:absolute; top:11%; left:0; right:0; text-align:center; padding:0 12%; z-index:2;
+    font-family:var(--serif); font-size:clamp(17px,2vw,22px); line-height:1.35; color:#dbe6f5;
+    opacity:0; transition:opacity .6s}
+  .p-q.show{opacity:1}
+  .p-q .cur{color:var(--amber)}
+  .p-said{position:absolute; left:50%; bottom:6%; transform:translateX(-50%); width:min(560px,88%);
+    text-align:center; z-index:2; opacity:0; transition:opacity .7s}
+  .p-said.show{opacity:1}
+  .p-line{font-family:var(--serif); font-size:clamp(15px,1.7vw,18.5px); line-height:1.5; color:var(--ink)}
+  .p-line .flag{color:var(--amber)}
+  .p-ev{display:flex; gap:9px; justify-content:center; flex-wrap:wrap; margin-top:12px; opacity:0; transition:opacity .6s}
+  .p-ev.show{opacity:1}
+  .p-chip{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#c8d3e4;
+    border:1px solid var(--line2); border-radius:999px; padding:5px 12px; background:rgba(13,20,34,.6)}
+  .p-chip .d{width:5px; height:5px; border-radius:50%; background:var(--amber)}
+  .p-notice{margin-top:12px; font-size:13px; color:var(--green); opacity:0; transition:opacity .6s}
+  .p-notice.show{opacity:1}
+  /* the bigger-idea stepper */
+  .stepper{display:grid; grid-template-columns:1.12fr .88fr; gap:40px; align-items:center; margin-top:30px;
+    border:1px solid var(--line2); border-radius:20px; overflow:hidden;
+    background:linear-gradient(180deg, rgba(17,26,44,.5), rgba(11,18,34,.5))}
+  .step-visual{position:relative; height:440px}
+  .step-visual #bicanvas{position:absolute; inset:0; width:100%; height:100%}
+  .step-text{padding:42px 46px 42px 4px}
+  .step-count{font-size:12px; letter-spacing:.2em; color:var(--faint); margin-bottom:18px}
+  .step-count b{color:var(--amber); font-weight:600}
+  .step-text h3{font-family:var(--serif); font-size:clamp(21px,2.5vw,28px); line-height:1.18; margin:0 0 15px; color:var(--ink); transition:opacity .35s ease, transform .35s ease}
+  .step-text p{font-size:16px; line-height:1.62; color:var(--body); margin:0; min-height:130px; transition:opacity .35s ease, transform .35s ease}
+  .step-text.turning h3, .step-text.turning p{opacity:0; transform:translateY(9px)}
+  .step-nav{display:flex; align-items:center; gap:16px; margin-top:28px}
+  .step-arrow{width:42px; height:42px; border-radius:50%; border:1px solid var(--line2); background:transparent;
+    color:var(--ink); font-size:17px; cursor:pointer; transition:border-color .3s, background .3s; display:flex; align-items:center; justify-content:center}
+  .step-arrow:hover{border-color:var(--blue); background:rgba(90,160,224,.08)}
+  .step-dots{display:flex; gap:9px; flex:1}
+  .step-dots button{width:8px; height:8px; padding:0; border:none; border-radius:50%; background:var(--line2); cursor:pointer; transition:background .3s, transform .3s}
+  .step-dots button.on{background:var(--amber); transform:scale(1.3)}
+  @media(max-width:760px){ .stepper{grid-template-columns:1fr; gap:0} .step-visual{height:280px} .step-text{padding:6px 26px 30px} .step-text p{min-height:0} }
+
+  /* price + sentinel */
+  .price-hero{text-align:center; max-width:620px; margin:0 auto 40px; padding:36px 32px; border:1px solid var(--line2); border-radius:18px; background:var(--panel)}
+  .ph-amt{font-family:var(--serif); font-size:clamp(40px,6vw,62px); color:var(--ink); letter-spacing:-.02em; margin-bottom:12px}
+  .ph-sub{font-size:15.5px; color:var(--mut); line-height:1.6; max-width:470px; margin:0 auto}
+  .sentinel{max-width:1020px; margin:0 auto; border:1px solid var(--line2); border-radius:18px; padding:36px 38px;
+    background:linear-gradient(180deg, rgba(216,176,106,.06), rgba(18,16,25,0))}
+  .sent-k{font-size:12px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); margin-bottom:16px}
+  .sent-lead{font-family:var(--serif); font-size:clamp(18px,2.1vw,23px); color:var(--ink); line-height:1.4; margin:0 0 28px; max-width:760px}
+  .sent-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:28px}
+  .sc{font-size:14.5px; color:var(--mut); line-height:1.58}
+  .sc b{display:block; font-family:var(--serif); font-weight:400; font-size:17px; color:var(--ink); margin-bottom:7px}
+  @media(max-width:760px){ .sent-grid{grid-template-columns:1fr} }
+  /* reads vs you decide */
+  .split{display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--line2); border-radius:18px; overflow:hidden; max-width:1060px; margin:0 auto}
+  .split-col{padding:38px 42px}
+  .split-col:first-child{border-right:1px solid var(--line2); background:rgba(18,16,25,.4)}
+  .split-k{font-family:var(--serif); font-size:20px; margin-bottom:24px; letter-spacing:-.01em}
+  .split-k.reads{color:var(--ink)}
+  .split-k.decide{color:var(--gold)}
+  .split-list{list-style:none; counter-reset:s; margin:0; padding:0}
+  .split-list li{counter-increment:s; position:relative; padding:0 0 20px 44px; font-size:15px; color:var(--mut); line-height:1.55}
+  .split-list li:last-child{padding-bottom:0}
+  .split-list li::before{content:counter(s); position:absolute; left:0; top:-3px; font-family:var(--serif); font-size:15px; color:var(--faint);
+    width:29px; height:29px; border:1px solid var(--line2); border-radius:50%; display:flex; align-items:center; justify-content:center}
+  .split-col:last-child .split-list li::before{color:var(--gold); border-color:rgba(216,176,106,.5)}
+  .split-list li b{color:var(--ink); font-weight:600}
+  /* refusal list */
+  .nevers{max-width:730px; margin:0 auto; display:flex; flex-direction:column; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:14px; overflow:hidden}
+  .nv{display:flex; align-items:baseline; gap:16px; padding:22px 28px; background:var(--panel)}
+  .nv .x{font-family:var(--serif); font-style:italic; color:var(--amber); font-size:18px; flex:0 0 auto; min-width:62px}
+  .nv p{margin:0; font-size:15.5px; color:var(--body); line-height:1.5}
+  /* still reading */
+  .stillreading{max-width:640px; margin:0 auto 22px; font-family:var(--serif); font-style:italic; font-size:17px; color:var(--mut); line-height:1.55}
+  @media(max-width:760px){ .split{grid-template-columns:1fr} .split-col:first-child{border-right:none; border-bottom:1px solid var(--line2)} }
+  /* value grid: the four things, together */
+  .vgrid{display:grid; grid-template-columns:1fr 1fr; gap:22px}
+  .vcard{background:var(--panel); border:1px solid var(--line2); border-radius:14px; padding:30px 32px}
+  .vcard .vnum{font-family:var(--serif); font-size:20px; color:var(--gold); margin-bottom:12px}
+  .vcard h3{font-family:var(--serif); font-weight:400; font-size:22px; color:var(--ink); margin:0 0 10px; letter-spacing:-.01em}
+  .vcard p{font-size:15px; color:var(--mut); margin:0; line-height:1.6}
+  /* problem echoes */
+  .echoes{margin:30px 0; border-left:2px solid var(--amber); padding-left:24px}
+  .echo{font-family:var(--serif); font-size:clamp(19px,2.3vw,26px); line-height:1.5; color:var(--mut)}
+  .echo em{font-style:italic; color:var(--ink)}
+  /* price cards */
+  .pricecards{display:grid; grid-template-columns:1fr 1fr; gap:22px; max-width:980px; margin:0 auto}
+  .pc{background:var(--panel); border:1px solid var(--line2); border-radius:16px; padding:34px 34px}
+  .pc.opt{background:transparent}
+  .pc-k{font-size:12px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); margin-bottom:14px}
+  .pc-amt{font-family:var(--serif); font-weight:400; font-size:clamp(30px,4vw,44px); color:var(--ink); margin-bottom:14px; letter-spacing:-.01em}
+  .pc-d{font-size:15px; color:var(--mut); line-height:1.62}
+  .own-notes{display:grid; grid-template-columns:1fr 1fr 1fr; gap:28px; max-width:980px; margin:42px auto 0}
+  .on{font-size:14.5px; color:var(--body); line-height:1.58}
+  .on b{display:block; margin-bottom:5px; font-family:var(--serif); font-weight:400; font-size:16.5px; color:var(--ink)}
+  @media(max-width:760px){ .vgrid,.pricecards,.own-notes{grid-template-columns:1fr} }
+  /* model line */
+  .model{display:grid; grid-template-columns:1fr 1fr 1fr; gap:0; margin:8px 0 0; border-radius:14px; overflow:hidden; border:1px solid var(--line)}
+  .model .m{padding:24px 22px; background:var(--panel); border-left:1px solid var(--line)}
+  .model .m:first-child{border-left:none}
+  .model .m h4{font-family:var(--serif); font-weight:400; font-size:19px; margin:0 0 8px}
+  .model .m.mem h4{color:var(--blue)} .model .m.min h4{color:var(--green)} .model .m.sou h4{color:var(--amber)}
+  .model .m p{font-size:14.5px; color:var(--mut); margin:0; line-height:1.58}
+
+  /* commitments 2x2 */
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:16px; overflow:hidden}
+  .grid2 .c{background:var(--panel); padding:30px 28px; transition:background .4s}
+  .grid2 .c:hover{background:var(--panel2)}
+  .grid2 h3{font-family:var(--serif); font-weight:400; font-size:21px; color:var(--ink); margin:0 0 10px; letter-spacing:-.01em}
+  .grid2 p{font-size:15.5px; color:var(--mut); margin:0; line-height:1.6}
+
+  /* trust triptych (kept) */
+  .trip{display:grid; grid-template-columns:1fr 1fr 1fr; gap:30px; margin-top:14px}
+  .trip .t h3{font-family:var(--serif); font-weight:400; font-size:22px; margin:0 0 10px}
+  .trip .t.p h3{color:var(--blue)} .trip .t.r h3{color:var(--green)} .trip .t.y h3{color:var(--amber)}
+  .trip .t p{font-size:15.5px; color:var(--mut); margin:0; line-height:1.62}
+
+  /* faq */
+  .faq details{border-bottom:1px solid var(--line)}
+  .faq summary{list-style:none; cursor:pointer; padding:22px 46px 22px 2px; position:relative;
+    font-family:var(--serif); font-size:22px; color:var(--ink); line-height:1.3}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary::after{content:"+"; position:absolute; right:6px; top:20px; color:var(--amber); font-size:25px; transition:transform .25s}
+  .faq details[open] summary::after{transform:rotate(45deg)}
+  .faq .ans{padding:0 46px 26px 2px}
+  .faq .ans p{font-size:16.5px; color:var(--body); margin:0 0 15px} .faq .ans p:last-child{margin:0}
+
+  .cta{text-align:center; padding:104px 0 76px}
+  .cta p{max-width:600px; margin:0 auto 34px; color:var(--body)}
+  .btn{display:inline-block; background:var(--amber); color:#1a1206; text-decoration:none; font-weight:600;
+    font-size:15px; padding:14px 30px; border-radius:999px}
+  .btn:hover{filter:brightness(1.06)}
+  .btn.ghost{background:transparent; color:var(--ink); border:1px solid var(--line2); margin-left:10px}
+  .btn.ghost:hover{border-color:var(--amber); color:var(--amber)}
+
+  footer{border-top:1px solid var(--line); padding:34px 0; color:var(--faint); font-size:14px}
+  footer .wide{display:flex; justify-content:space-between; align-items:center}
+
+  @media(max-width:760px){
+    .two{grid-template-columns:1fr; gap:34px} .two.rev .txt{order:0}
+    .model,.grid2,.trip{grid-template-columns:1fr}
+    .navlinks a:not(.req){display:none}
+    section{padding:62px 0}
+    .stage{height:720px}
+  }
+
+  /* ===== resource library ===== */
+  .lib{display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:900px; margin:0 auto}
+  .libitem{display:flex; flex-direction:column; gap:8px; text-decoration:none;
+    border:1px solid var(--line2); border-radius:13px; padding:21px 23px; background:var(--panel);
+    transition:border-color .2s ease, transform .2s ease, background .2s ease}
+  .libitem:hover{border-color:var(--amber); transform:translateY(-2px); background:var(--panel2)}
+  .libitem .li-t{font-family:var(--serif); font-size:20px; color:var(--ink); line-height:1.25}
+  .libitem .li-d{font-size:14.5px; color:var(--mut); line-height:1.5; flex:1}
+  .libitem .li-x{font-family:var(--sans); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--amber)}
+  .libitem.feature{grid-column:1 / -1; background:var(--panel2)}
+  @media(max-width:760px){ .lib{grid-template-columns:1fr} }
+
+  /* Q&A: download-as-PDF button + print view */
+  button.btn{border:0; cursor:pointer; font-family:var(--sans)}
+  .btn.sm{font-size:13.5px; padding:11px 24px}
+  .faq-dl{margin:36px 0 0; text-align:center}
+  .faq-dl .hint{display:block; margin-top:12px; color:var(--faint); font-size:13px}
+  #print-head{display:none}
+  @media print{
+    canvas,#weave,.glow,nav,.hero,.hero-scrim,.hero-ov,footer,.faq-dl,.h-scroll{display:none !important}
+    .wrap > section:not(#questions){display:none !important}
+    html,body{background:#fbf7ee !important; color:#211a0f !important}
+    .wrap{display:block !important}
+    #questions{padding:8mm 0 0 !important}
+    #questions .col.ed{display:block !important; max-width:100% !important; grid-template-columns:none !important; gap:0 !important}
+    #questions .ed-head .eyebrow{color:#9a7324 !important; font-size:15pt !important}
+    #questions h2{color:#211a0f !important; font-size:21pt !important}
+    #questions .muted{color:#554d3d !important}
+    #questions .faq details{border-color:#ddd1b7 !important; break-inside:avoid}
+    #questions .faq summary{color:#211a0f !important; font-size:14pt !important; padding:13px 0 6px !important; cursor:default}
+    #questions .faq summary::after{display:none !important}
+    #questions .faq .ans{display:block !important; padding:0 0 15px 0 !important}
+    #questions .faq .ans p{color:#2c2417 !important; font-size:11.3pt !important; line-height:1.5}
+    #print-head{display:block !important; text-align:center; margin:0 0 10mm;
+      font-family:var(--sans); font-size:9pt; letter-spacing:.22em; text-transform:uppercase; color:#9a7324}
+    a[href]:after{content:"" !important}
+  }
+</style>
+</head>
+<body>
+<canvas id="weave"></canvas>
+<div class="glow"></div>
+
+<div class="wrap">
+  <nav>
+    <a class="mark" href="#top">Weave</a>
+    <div class="navlinks">
+      <a href="#how">How it works</a>
+      <a href="#see">See it think</a>
+      <a href="#questions">Questions</a>
+      <a href="#library">Read deeper</a>
+      <a class="req" href="mailto:doug@weavedeep.com?subject=Weave%20access%20request">Request access</a>
+    </div>
+  </nav>
+
+  <a id="top"></a>
+  <header class="hero" id="herosec">
+    <canvas id="herocv"></canvas>
+    <div class="hero-scrim"></div>
+    <div class="hero-ov">
+      <div class="h-eyebrow">Introducing Weave</div>
+      <div class="h-lower">
+        <h1 class="h-title">A <em>mind</em> for your organization.</h1>
+        <p class="h-sub">Everything your company knows, awake at last and working as one: the intelligence every business has been waiting for.</p>
+      </div>
+      <a class="h-scroll" href="#problem"><span class="ln"></span>Begin</a>
+    </div>
+  </header>
+
+  <section class="divide" id="problem">
+    <div class="col ed">
+      <div class="ed-head">
+        <p class="eyebrow rv">The thing nobody has solved</p>
+      <h2 class="rv">Every company is full of knowledge that never reaches the person who needs it.</h2>
+      </div>
+      <div class="ed-body">
+        <p class="big rv d1">The answer almost always exists somewhere: three teams over, in a file with a name you would never think to search, in a conversation that happened before you arrived. It simply never reaches the person who needs it while it still matters.</p>
+        <div class="echoes rv d1">
+          <div class="echo">The same question, <em>asked again.</em></div>
+          <div class="echo">The same lesson, <em>learned again.</em></div>
+          <div class="echo">The same avoidable mistake, <em>paid for twice.</em></div>
+        </div>
+        <p class="rv d2">None of it is anyone's failing. There has simply never been a way for an organization to hold everything it knows in one place and reason about it the way a single well-informed person would, if only one person could ever know that much. A wiki goes stale the week it is written. Search finds the document but not the answer buried inside it. And the person who understood how the pieces fit has, more often than not, already moved on and taken the map with them.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="divide" id="how">
+    <div class="wide">
+      <div class="two">
+        <div class="txt">
+          <p class="eyebrow rv">What Weave actually does</p>
+          <h2 class="rv">It learns your organization from what is already there, and then it answers.</h2>
+          <p class="rv d1">It reads the systems you already use and builds its own understanding from what exists, so there is no second system to curate, no wiki to keep writing and no discipline to keep up. That matters, because every knowledge system that depends on people remembering to update it eventually dies of neglect.</p>
+          <p class="rv d2">Ask it a question and it answers the way the most knowledgeable person in the building would, in plain language and to the point, except that it has read everything and forgets nothing. It is not searching for documents and handing them back for you to sift; it is drawing on an understanding it has already built of how your organization actually works. And because it knows where every part of that understanding came from, it can show you the reasoning and the exact record behind any claim the moment you want to see it.</p>
+        </div>
+        <div class="viz rv d2">
+          <canvas id="gather" aria-hidden="true"></canvas>
+          <p class="muted" style="font-size:13.5px; text-align:center; margin-top:6px">Scattered knowledge, gathered into one understanding.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="divide" id="partnership">
+    <div class="col">
+      <p class="eyebrow rv" style="text-align:center">The bigger idea</p>
+      <h2 class="rv" style="text-align:center; max-width:640px; margin:0 auto 6px">Not a tool you bolt on. A different way to work.</h2>
+    </div>
+    <div class="wide">
+      <div class="stepper rv d1" id="bigidea">
+        <div class="step-visual"><canvas id="bicanvas"></canvas></div>
+        <div class="step-text">
+          <div class="step-count"><b id="bi-n">01</b> / 03</div>
+          <h3 id="bi-h"></h3>
+          <p id="bi-p"></p>
+          <div class="step-nav">
+            <button class="step-arrow" id="bi-prev" aria-label="Previous step">&#8592;</button>
+            <div class="step-dots" id="bi-dots"></div>
+            <button class="step-arrow" id="bi-next" aria-label="Next step">&#8594;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+    <section class="divide" id="value">
+    <div class="wide">
+      <p class="eyebrow rv" style="text-align:center">What that gives you</p>
+      <h2 class="rv" style="text-align:center; max-width:720px; margin:0 auto 46px">Four things become true that were not true before.</h2>
+      <div class="vgrid rv d1">
+        <div class="vcard"><div class="vnum">01</div><h3>The value you own but can't reach</h3><p>Most of what makes your company good already exists, scattered across files and tools and people's heads, where almost none of it can be reached at the moment you actually need it. Weave gathers it into one place that can be asked, so the value you already own finally becomes usable instead of sitting idle.</p></div>
+        <div class="vcard"><div class="vnum">02</div><h3>The connections nobody had time to make</h3><p>The hardest problems live in the gaps between teams, where the person who knows and the person who needs to know never quite meet. Weave sees the whole organization at once, joins a question in one corner to the answer sitting in another, and can surface two teams solving the same problem, so you don&rsquo;t pay for the work twice.</p></div>
+        <div class="vcard"><div class="vnum">03</div><h3>You stay in charge</h3><p>Weave reads, understands, drafts and suggests, and then it stops. Every consequential decision stays with a person, and anything it does can be seen and undone. It is built to make your judgment faster and better informed, never to stand in for it.</p></div>
+        <div class="vcard"><div class="vnum">04</div><h3>The work that comes before the decision</h3><p>Most of the effort in any decision is the gathering: finding what is relevant, remembering what happened last time, assembling the picture. Weave does that part and hands you the finished picture with its sources, so your time goes to the judgment itself.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="divide stage-sec" id="see">
+    <div class="wide">
+      <p class="eyebrow rv" style="text-align:center; color:var(--violet)">The part that surprises people</p>
+      <h2 class="rv" style="text-align:center; max-width:680px; margin:0 auto 12px">You can watch it think, and check every word.</h2>
+      <p class="rv d1 muted" style="text-align:center; max-width:600px; margin:0 auto 40px">Ask Weave a question and it does not just print an answer. It gathers the records that bear on it, reasons in front of you, and traces each claim back to where it came from. Below is that, in miniature.</p>
+      <div class="stage rv d1" id="thinkstage">
+        <canvas id="pcanvas"></canvas>
+        <div class="p-state" id="pstate">present, ready when you are</div>
+        <div class="p-q" id="pq"></div>
+        <div class="p-said" id="psaid">
+          <div class="p-line" id="psline"></div>
+          <div class="p-ev" id="pev"></div>
+          <div class="p-notice" id="pnotice"></div>
+        </div>
+      </div>
+      <p class="stagecap rv d2">Nothing here is invented. It is the shape of a real conversation with Weave: a question, the records it consulted, an answer, and the evidence under every part of it.</p>
+    </div>
+  </section>
+
+    <section class="divide">
+    <div class="wide">
+      <p class="eyebrow rv" style="text-align:center">How it is built</p>
+      <h2 class="rv" style="text-align:center; margin:0 auto 20px">Memory, Mind, and Soul.</h2>
+      <p class="rv d1 muted" style="text-align:center; max-width:760px; margin:0 auto 44px">Most software gives you somewhere to put information and stops there, as if what a company knows could be solved with a bigger filing cabinet. Weave is built from three parts that feed one another, and the one everyone pictures first, the place things are kept, turns out to be the least interesting of the three.</p>
+      <div class="model rv d2">
+        <div class="m mem"><h4>Memory</h4><p>Everything your organization knows, read from the tools you already use so you never load it by hand. When your records change, Weave re-reads them, and there is no second copy for anyone to keep current.</p></div>
+        <div class="m min"><h4>Mind</h4><p>The understanding Weave builds on top of that memory and rebuilds as the record changes, so it reasons over what is current rather than a stale snapshot. This is the part that reasons, connects distant things, and answers in plain language.</p></div>
+        <div class="m sou"><h4>Soul</h4><p>The character the Mind reasons inside of: who each team is, what it owns, how it actually works, and what it holds to be good. A mind without it is a brilliant stranger. The Soul is what makes the answers sound like your organization and respect its judgment, rather than a capable machine's. It is the part that makes this yours, and not merely clever.</p></div>
+      </div>
+    </div>
+  </section>
+
+    <section class="divide" id="trust">
+    <div class="wide">
+      <p class="eyebrow rv" style="text-align:center">Where the line is</p>
+      <h2 class="rv" style="text-align:center; max-width:760px; margin:0 auto 14px">Weave does the work. You keep every decision that matters.</h2>
+      <p class="muted rv d1" style="text-align:center; max-width:660px; margin:0 auto 48px">The gates that keep you in control are not switches we bolted on. They are the backbone of how Weave is designed, and they are the whole reason you can trust it with the work you cannot afford to get wrong.</p>
+      <div class="split rv d1">
+        <div class="split-col">
+          <div class="split-k reads">Weave reads. It does the work.</div>
+          <ol class="split-list">
+            <li><b>What you hold.</b> It connects to your records, read only, and never writes a thing back.</li>
+            <li><b>What is in them.</b> The decisions, the commitments, the people, and where each one came from.</li>
+            <li><b>What it means.</b> Every claim marked proved, unresolved, or absent, so you always know which is which.</li>
+            <li><b>What you would miss.</b> The counter-argument, the places you quietly contradict your own past reasoning, and the connections that come into view only from an altitude high enough to see the whole forest at once.</li>
+          </ol>
+        </div>
+        <div class="split-col">
+          <div class="split-k decide">You decide. The judgment is yours.</div>
+          <ol class="split-list">
+            <li><b>What stays private.</b> Sensitive or restricted material is detected and flagged for a person to rule on before it is cleared to go out, so nothing delicate reaches the wrong people on anyone’s silent say-so.</li>
+            <li><b>What goes out.</b> Weave drafts and suggests as freely as you like, but nothing it produces acts, ships, or becomes official until you approve it.</li>
+            <li><b>What matters.</b> Which questions are worth asking in the first place, and what deserves your attention.</li>
+            <li><b>The call.</b> Yours, every single time.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+    <section class="divide" id="never">
+    <div class="col">
+      <p class="eyebrow rv" style="text-align:center">What Weave will never do</p>
+      <h2 class="rv" style="text-align:center; max-width:680px; margin:0 auto 40px">A refusal is worth more than a feature.</h2>
+      <div class="nevers rv d1">
+        <div class="nv"><span class="x">Never</span><p>writes to your files. It reads, and it cannot alter, move, or delete a single thing you own.</p></div>
+        <div class="nv"><span class="x">Never</span><p>acts in the world on its own. The most it will do is raise something for you to look at, but it will not send a message, change a system, or take any action on your behalf until you approve it.</p></div>
+        <div class="nv"><span class="x">Never</span><p>claims past your records. When the answer is not there, it says so, instead of inventing one to be helpful.</p></div>
+        <div class="nv"><span class="x">Never</span><p>decides for you. Every consequential call stays with a person, every time.</p></div>
+      </div>
+    </div>
+  </section>
+
+  
+
+  <section class="divide" id="questions">
+    <div id="print-head">Weave &middot; Questions people ask &middot; weavedeep.com</div>
+    <div class="col ed">
+      <div class="ed-head">
+        <p class="eyebrow rv">The questions you are probably already asking</p>
+      <h2 class="rv">What Weave is, and what it is not.</h2>
+      </div>
+      <div class="ed-body">
+        <p class="muted rv d1" style="margin-bottom:30px">Most people land here curious and with nothing to compare Weave to, which usually means comparing it to the wrong thing. These are the questions that tend to come next, answered plainly.</p>
+      <div class="faq rv d1">
+        <details><summary>So what is this, really?</summary><div class="ans"><p>Picture a brilliant new colleague who has somehow read every document, message, and decision your company has ever produced, remembers all of it, and understands how it all fits together, and who you can simply ask. That is the nearest thing to Weave. Underneath, though, it is not a model that was trained and asked to do everything, and it is not search dressed up as conversation. It is a system, an architecture of parts each engineered for one job: one reads and holds your organization's record, one builds a living understanding of it and rebuilds it as the record changes, one keeps that understanding grounded in who your teams actually are, and others trace every answer to its source and flag sensitive things for a person to clear. It can do these things because it was deliberately built to, not because a general model was coaxed into approximating them, which is why Weave is a real, inspectable thing you own rather than a clever trick you rent.</p></div></details>
+        <details><summary>Is this just a chatbot?</summary><div class="ans"><p>No, and the difference is the whole point. A chatbot is a clever talker with no particular stake in the truth of what it says. Weave speaks only from your real records, shows the evidence behind every answer, and tells you when it does not know rather than filling the silence. And it does more than answer the literal question: when you bring it something, it also surfaces the related thing across the organization that you didn&rsquo;t think to ask about.</p></div></details>
+        <details><summary>How is it different from ChatGPT or Copilot?</summary><div class="ans"><p>Those are brilliant generalists. They know an astonishing amount about the world and almost nothing about your organization, and when they do not know something about your business they will often produce a confident answer anyway. Weave is the opposite kind of thing. It knows your organization specifically and deeply, it speaks only from what your records support, and it hands you the source for every claim, so you are never guessing whether to believe it.</p></div></details>
+        <details><summary>Does it make things up?</summary><div class="ans"><p>This is the right thing to worry about, and it is the problem Weave was built around. It answers only from your records, and every claim it makes is checked against those records before you see it, and whatever the record will not support is revised or cut rather than shown. When the answer genuinely is not there, it says so plainly instead of inventing something to be helpful.</p></div></details>
+        <details><summary>Do we have to put everything into it, or change how we work?</summary><div class="ans"><p>No. That is usually the moment these systems fail, when they ask everyone to do a little extra forever and the extra quietly stops happening. Weave reads what your organization already creates in the course of normal work. Nobody has to tag, file, summarize or maintain anything, because there is no second library to keep: Weave reads your real work and re-reads it as it changes.</p></div></details>
+        <details><summary>Will it touch or change our files?</summary><div class="ans"><p>Never. Weave only reads. It connects in a way that makes writing to your systems impossible rather than merely against the rules, so it cannot alter, move or delete a single thing you own. Whatever it learns, your original files are exactly as they were.</p></div></details>
+        <details><summary>Who can see what? Is our sensitive material safe?</summary><div class="ans"><p>Sensitive material is treated as sensitive by default. Weave flags anything that looks personal, confidential or restricted and puts it in front of a person to rule on before it can go out, so nothing delicate reaches the wrong audience on its own say-so. Your records and the memory Weave builds live in stores you own, and what Weave learns for one organization is never mixed with another.</p></div></details>
+        <details><summary>Isn't this just search, or a better wiki?</summary><div class="ans"><p>Search and wikis both stop at storage. Search can find a document but cannot read it for you or connect it to the three other things that make it matter, and a wiki only knows what someone found time to write down, which is why it is out of date almost immediately. Weave understands rather than stores. It reads across everything, builds an understanding instead of a pile of files and re-reads your records rather than asking you to keep a wiki alive by hand, and answers the actual question instead of pointing at where the answer might be.</p></div></details>
+        <details><summary>What happens when the AI models keep changing?</summary><div class="ans"><p>Weave is built so it is never welded to one model or provider. No model is named in its code; it is designed to run each task on whichever model has passed its own evaluation, and to move to a better one once that one proves out, so your organization's understanding is not tied to one company's roadmap. Today one provider carries the load; the machinery to switch between proven models is built and waiting on the first pilot. As the field improves, Weave is built to improve with it, without a rebuild.</p></div></details>
+        <details><summary>Can I actually see it work?</summary><div class="ans"><p>Yes. The best way to understand Weave is to sit with a real one and watch it think through a question, evidence and all. That is what a first conversation is for, and it tends to do more in ten minutes than any amount of description on a page like this one.</p></div></details>
+        <details><summary>How do we get it, and what does it cost?</summary><div class="ans"><p>Getting one is a process Weave runs, not something a backroom team hand-assembles. It reads your organization's own history, the documents, decisions, messages and systems you already have, and forms its understanding from them. The whole thing is engineered, automated, and properly tested in the real world, so there is no one behind a curtain piecing your Weave together. The decisions along the way are yours; the work itself is done by a system you can inspect. And because it is a system rather than a person, anywhere it falls short can be found, corrected, and then relied on, which is more than can be said for work that depends on someone remembering to get it right. For a company of fifty to five hundred people it is $100,000, paid once, and then it is yours to keep, with an optional monthly Sentinel subscription and, as the network grows, a connection to other Weaves that you can take or leave. We take on only a few organizations at a time while the process proves itself in the open, so the next step is a conversation rather than a signup.</p></div></details>
+        <details><summary>What happens if we stop, or you walk away?</summary><div class="ans"><p>You keep everything. Your records and the memory Weave builds sit in stores you own and control, and there is nothing to migrate back because it was always yours. The aim is to leave your organization more capable than it was, not more dependent.</p></div></details>
+      </div>
+      <div class="faq-dl rv d1">
+        <button class="btn sm" onclick="qaPrint()">Save these answers as a PDF</button>
+        <span class="hint">Opens your browser&rsquo;s print dialog &mdash; choose &ldquo;Save as PDF.&rdquo; Always the current version.</span>
+      </div>
+      </div>
+    </div>
+  </section>
+
+    <section class="divide" id="cost">
+    <div class="wide">
+      <p class="eyebrow rv" style="text-align:center">What you own, and what it costs</p>
+      <h2 class="rv" style="text-align:center; max-width:720px; margin:0 auto 20px">Buy it once. It is yours for good.</h2>
+      <p class="muted rv d1" style="text-align:center; max-width:740px; margin:0 auto 46px">Weave is not rented. We have all watched software turn ownership into a subscription, so that you repurchase your own dream home every spring and lose the keys the day you stop paying. Your organization's understanding of itself is the last thing that should work that way, so you buy it once, your knowledge and its memory live in stores you own, and it stays yours even if you walk away.</p>
+      <div class="price-hero rv d1">
+        <div class="ph-amt">$100,000</div>
+        <div class="ph-sub">Paid once, for a company of fifty to five hundred people. We stand your Weave up on your own organization's knowledge, hand it over, and it is yours to keep. That is the whole of what it takes to own one.</div>
+      </div>
+      <div class="sentinel rv d1">
+        <div class="sent-k">Optional, monthly &nbsp;&middot;&nbsp; the Sentinel</div>
+        <p class="sent-lead">The Sentinel is an automation designed to keep watch so you never have to. Once running, it works quietly in the background long after your Weave is built, taking on the upkeep you would otherwise carry yourself, so the thing you own keeps getting sharper. Is it still current? Is it drifting? Has a better model come along? With the Sentinel on, none of that is yours to track.</p>
+        <div class="sent-grid">
+          <div class="sc"><b>Once running, it watches your Weave.</b>As your organization changes, it re-reads, catches drift and error before you would have, and keeps the understanding sharpening instead of slowly going stale.</div>
+          <div class="sc"><b>It is designed to watch the whole AI field.</b>It tracks which models are strongest, which have just been released, which are under review and which are being retired, and keeps your Weave on the best that has passed its evaluation, so the relentless churn of AI is never a thing you have to think about.</div>
+          <div class="sc"><b>As the network grows, it connects you to other Weaves.</b>No data ever leaves your walls; only method travels. When one Weave anywhere learns a better way to reason, you will be offered the chance to adopt it for yourself if you wish.</div>
+        </div>
+      </div>
+      <div class="own-notes rv d2">
+        <div class="on"><b>You hold the keys</b>You decide what Weave may see, and you can revoke any of it whenever you like, with no explanation owed.</div>
+        <div class="on"><b>You start the next day</b>Once it has read your history and learned how your teams work, you simply begin.</div>
+        <div class="on"><b>The hard part is done</b>You could build this yourself with AI. I spent the year proving it works, so you begin from the far side of that.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="divide" id="library">
+    <div class="col">
+      <p class="eyebrow rv" style="text-align:center">Read deeper</p>
+      <h2 class="rv" style="text-align:center; max-width:720px; margin:0 auto 18px">The long-form, for the curious and the skeptical.</h2>
+      <p class="muted rv d1" style="text-align:center; max-width:720px; margin:0 auto 42px">A short library you can take in any order, or not at all &mdash; each one stands on its own. Download what you like; the last two are written for the engineer who will not take a word of it on faith.</p>
+      <div class="lib rv d1">
+        <a class="libitem" href="downloads/what-weave-is.pdf" download="What Weave Is.pdf">
+          <span class="li-t">What Weave Is</span>
+          <span class="li-d">What is genuinely new here, and what it is not. The place to start.</span>
+          <span class="li-x">PDF &middot; download</span></a>
+        <a class="libitem" href="downloads/a-day-with-weave.pdf" download="A Day with Weave.pdf">
+          <span class="li-t">A Day with Weave</span>
+          <span class="li-d">The small, ordinary moments it quietly changes, told as scenes.</span>
+          <span class="li-x">PDF &middot; download</span></a>
+        <a class="libitem" href="downloads/how-weave-works.pdf" download="How Weave Works.pdf">
+          <span class="li-t">How Weave Works</span>
+          <span class="li-d">The handful of parts, in plain terms, and how a single question travels through them.</span>
+          <span class="li-x">PDF &middot; download</span></a>
+        <a class="libitem" href="downloads/why-weave-wont-go-stale.pdf" download="Why Weave Won't Go Stale.pdf">
+          <span class="li-t">Why Weave Won&rsquo;t Go Stale</span>
+          <span class="li-d">Why it is built not to age, and the standing watch designed to keep it current.</span>
+          <span class="li-x">PDF &middot; download</span></a>
+        <a class="libitem" href="downloads/your-data-your-walls.pdf" download="Your Data, Your Walls.pdf">
+          <span class="li-t">Your Data, Your Walls</span>
+          <span class="li-d">Where your knowledge lives, and the lines Weave is built so it cannot cross.</span>
+          <span class="li-x">PDF &middot; download</span></a>
+        <a class="libitem" href="#questions">
+          <span class="li-t">Questions People Ask</span>
+          <span class="li-d">The honest answers to what tends to come next. Read them below, or save them as a PDF.</span>
+          <span class="li-x">On this page</span></a>
+        <a class="libitem feature" href="downloads/how-it-really-works.pdf" download="How It Really Works.pdf">
+          <span class="li-t">How It Really Works &nbsp;&middot;&nbsp; for engineers</span>
+          <span class="li-d">The architecture at the depth an engineer needs to judge it, honest throughout about what runs today and what is designed for tomorrow &mdash; for the reader who suspects this is a language model in a trench coat.</span>
+          <span class="li-x">PDF &middot; download</span></a>
+        <a class="libitem feature" href="downloads/weave-the-architecture.pdf" download="Weave - The Architecture.pdf">
+          <span class="li-t">Weave: The Architecture &nbsp;&middot;&nbsp; the technical paper</span>
+          <span class="li-d">The full technical account: memory, the verifying mind, provenance, sealing, substrate independence, the control plane, and a frank ledger of what is proven and what is not.</span>
+          <span class="li-x">PDF &middot; download</span></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta" id="request">
+    <div class="col">
+      <h2 class="rv">Come and see what your organization already knows.</h2>
+      <p class="rv d1">Weave is early, and taken on only a few organizations at a time, because each one is stood up with real care on that organization's own knowledge. If you have ever suspected that your company knows far more than it can currently reach, a first conversation is mostly just us showing you that it is true, and what it looks like when all of it is finally gathered into one mind you can ask.</p>
+      <p class="rv d2 stillreading">Still reading, rather than clicking? Good, that is exactly the reader Weave was built for. Give me twenty minutes and I will show you a living Weave at work, reasoning through a real question and showing the evidence under every part of its answer, so you can judge the thing for yourself rather than take my word for it.</p>
+      <p class="rv d3"><a class="btn" href="mailto:doug@weavedeep.com?subject=Weave%20access%20request">Request access</a><a class="btn ghost" href="#see">See it think</a></p>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wide">
+      <span class="mark" style="font-size:15px">Weave</span>
+      <span>weavedeep.com</span>
+    </div>
+  </footer>
+</div>
+
+<script>function qaPrint(){document.querySelectorAll('#questions details').forEach(function(d){d.open=true;});window.print();}</script>
+<script>
+// the hero presence: emerges on load, then breathes
+(function(){
+var TWO=Math.PI*2;
+var lp=function(a,b,k){return a+(b-a)*k;}, clamp=function(v,a,b){return v<a?a:v>b?b:v;};
+var ease=function(u){return u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2;};
+var cv=document.getElementById('herocv'),ctx=cv.getContext('2d');
+var W,H,DPR,cx,cy,S,baseS;
+var C_BASE=[150,178,224],C_WARM=[236,196,128],C_THINK=[150,140,235],C_GOLD=[245,215,150];
+var col=function(c,a){return 'rgba('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+','+a+')';};
+var rot=0,weaveY=-1,weaveDir=1,shuttleAng=0,mouseNX=0,mouseNY=0;
+var P={breath:0.95,weft:0.6,bright:0.72,warm:0.55,lean:0.4,taut:1.0};
+var moodC=[240,202,132],moodAmt=0.42,thinkAmt=0,unfurl=0;
+var N=84,M=40,introT=0,last=0,bloom=0;
+
+function tcol(ew,a){let r=lp(C_BASE[0],C_WARM[0],ew),g=lp(C_BASE[1],C_WARM[1],ew),b=lp(C_BASE[2],C_WARM[2],ew);
+  r=lp(r,moodC[0],moodAmt);g=lp(g,moodC[1],moodAmt);b=lp(b,moodC[2],moodAmt);
+  const tk=thinkAmt*0.55;r=lp(r,C_THINK[0],tk);g=lp(g,C_THINK[1],tk);b=lp(b,C_THINK[2],tk);
+  return `rgba(${r|0},${g|0},${b|0},${a.toFixed(3)})`;}
+function rad(v,br){return S*0.96*(1-0.16*v*v)*br*P.taut;}
+function drawBarrel(t){
+  const unf=unfurl>0?Math.sin((1.8-unfurl)/1.8*Math.PI):0;
+  const breathR=(1+0.045*Math.sin(t*1.05)*P.breath)*(1+0.11*unf)*(1-0.13*thinkAmt+0.028*thinkAmt*Math.sin(t*3.1));
+  const leanX=mouseNX*S*0.16*P.lean,leanY=mouseNY*S*0.10*P.lean,tilt=mouseNY*0.12*P.lean;
+  const ew=clamp(P.warm*0.35,0,1),gB=P.bright;
+  const cc=tcol(ew,1).match(/\d+/g);
+  const cg=ctx.createRadialGradient(cx+leanX,cy+leanY,2,cx+leanX,cy+leanY,S*1.15);
+  cg.addColorStop(0,`rgba(${cc[0]},${cc[1]},${cc[2]},${(0.17*gB).toFixed(3)})`);cg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=cg;ctx.fillRect(0,0,W,H);
+  ctx.globalCompositeOperation='lighter';
+  const threads=[];
+  for(let i=0;i<N;i++){const base=(i/N)*TWO;const pts=[];let zsum=0;
+    for(let m=0;m<M;m++){const v=-1+2*m/(M-1);
+      const sway=0.05*Math.sin(v*2.6+t*1.05+base*3.0)*(1.1-0.5*P.weft);
+      const ang=base+rot+sway+mouseNX*0.45*P.lean;
+      let r=rad(v,breathR)*(1+0.16*unf*0.5);
+      let x3=r*Math.cos(ang),z3=r*Math.sin(ang),y3=v*S*0.98+v*tilt*S;
+      const sc=3.0/(3.0-z3/S);let sx=cx+x3*sc+leanX,sy=cy+y3*sc+leanY;
+      pts.push({sx,sy,z:z3,v});zsum+=z3;}
+    threads.push({i,base,pts,z:zsum/M});}
+  threads.sort((a,b)=>a.z-b.z);
+  for(const th of threads){const db=clamp((th.z/S+1)/2,0,1);
+    const aBase=(0.10+0.5*db)*gB;ctx.lineWidth=Math.max(0.6,0.7+1.0*db);
+    ctx.beginPath();ctx.moveTo(th.pts[0].sx,th.pts[0].sy);for(let m=1;m<M;m++)ctx.lineTo(th.pts[m].sx,th.pts[m].sy);
+    ctx.strokeStyle=tcol(ew,aBase);ctx.stroke();
+    for(let m=0;m<M;m+=2){const p=th.pts[m];const near=Math.exp(-((p.v-weaveY)*(p.v-weaveY))/0.012);
+      const body=0.16+0.10*Math.sin(p.v*22+th.base*4+t*0.5);
+      const wb=(body+near*1.5*P.weft)*db*gB;if(wb<0.06)continue;
+      const sz=0.8+near*1.6+db*0.7;
+      ctx.fillStyle=tcol(Math.min(1,ew+near*0.35),Math.min(0.9,wb*0.5));ctx.fillRect(p.sx-sz/2,p.sy-sz/2,sz,sz);}}
+  {const sv=weaveY,r=rad(sv,breathR),ang=shuttleAng,x3=r*Math.cos(ang),z3=r*Math.sin(ang),sc=3.0/(3.0-z3/S);
+   const sx=cx+x3*sc+leanX,sy=cy+(sv*S*0.98+sv*tilt*S)*sc+leanY,db=clamp((z3/S+1)/2,0,1),sc2=tcol(Math.min(1,ew+0.45),1).match(/\d+/g);
+   const g=ctx.createRadialGradient(sx,sy,0,sx,sy,12+8*db);
+   g.addColorStop(0,`rgba(${sc2[0]},${sc2[1]},${sc2[2]},${(0.9*db*gB).toFixed(3)})`);g.addColorStop(1,'rgba(0,0,0,0)');
+   ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,12+8*db,0,TWO);ctx.fill();}
+  ctx.globalCompositeOperation='source-over';}
+
+// warm bokeh dust, drifting slowly across the whole field
+var dust=[];
+function seedDust(){ dust=[]; var n=46; for(var i=0;i<n;i++){ dust.push({
+  x:Math.random(),y:Math.random(),r:10+Math.random()*54,a:0.012+Math.random()*0.05,
+  vx:(Math.random()-0.5)*0.004,vy:(Math.random()-0.5)*0.004,ph:Math.random()*TWO,
+  c:Math.random()<0.7?[236,210,160]:[205,214,232]}); } }
+function drawDust(t){ ctx.globalCompositeOperation='lighter';
+  for(var i=0;i<dust.length;i++){ var d=dust[i]; d.x+=d.vx*0.004; d.y+=d.vy*0.004;
+    if(d.x<-0.1)d.x=1.1; if(d.x>1.1)d.x=-0.1; if(d.y<-0.1)d.y=1.1; if(d.y>1.1)d.y=-0.1;
+    var tw=0.6+0.4*Math.sin(t*0.6+d.ph), x=d.x*W, y=d.y*H, r=d.r;
+    var g=ctx.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0,col(d.c,d.a*tw)); g.addColorStop(1,col(d.c,0));
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,TWO); ctx.fill(); }
+  ctx.globalCompositeOperation='source-over';
+}
+// motes that stream into the core as it forms
+var seeds=[];
+function seedSeeds(){ seeds=[]; for(var i=0;i<10;i++){ var a=Math.random()*TWO, r=0.5+Math.random()*0.5;
+  seeds.push({a:a,r:r,sp:0.5+Math.random()*0.5,ph:Math.random()}); } }
+function drawSeeds(t){ if(introT>0.92) return; ctx.globalCompositeOperation='lighter';
+  for(var i=0;i<seeds.length;i++){ var s=seeds[i]; var u=clamp((introT*1.1)-s.ph*0.15,0,1); if(u<=0) continue;
+    var rr=lp(S*2.0*s.r,0,ease(u)), x=cx+Math.cos(s.a)*rr, y=cy+Math.sin(s.a)*rr*0.7, al=Math.sin(u*Math.PI)*0.8;
+    var g=ctx.createRadialGradient(x,y,0,x,y,5); g.addColorStop(0,col(C_GOLD,al)); g.addColorStop(1,col(C_GOLD,0));
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,5,0,TWO); ctx.fill(); }
+  ctx.globalCompositeOperation='source-over';
+}
+
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);W=cv.clientWidth;H=cv.clientHeight;
+  cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);
+  cx=W*0.5;cy=H*0.45;baseS=Math.min(W*0.5,H*0.62)*0.42;S=baseS;}
+addEventListener('resize',resize);
+cv.addEventListener('pointermove',function(e){var r=cv.getBoundingClientRect();
+  mouseNX=clamp(((e.clientX-r.left)/r.width)*2-1,-1,1);mouseNY=clamp(((e.clientY-r.top)/r.height)*2-1,-1,1);});
+
+function frame(ts){requestAnimationFrame(frame);var t=ts*0.001,dt=Math.min(0.05,(ts-last)*0.001||0);last=ts;
+  if(introT<1){ introT=clamp(introT+dt/2.6,0,1); }
+  var ei=ease(introT);
+  S=baseS*(0.78+0.22*ei);
+  thinkAmt=(1-introT)*0.5;                      // weaving actively as it forms, then calm
+  rot+=dt*0.05*TWO*0.16; shuttleAng+=dt*(2.0+ (1-introT)*5.0);
+  weaveY+=weaveDir*dt*0.18*(0.5+P.weft); if(weaveY>1){weaveY=1;weaveDir=-1;} if(weaveY<-1){weaveY=-1;weaveDir=1;}
+  // a soft bloom at the moment of formation
+  var target=(introT>0.42&&introT<0.72)?1:0; bloom=lp(bloom,target,0.12);
+  ctx.clearRect(0,0,W,H);
+  drawDust(t);
+  drawSeeds(t);
+  ctx.save(); ctx.globalAlpha=ei; drawBarrel(t); ctx.restore();
+  if(bloom>0.01){ ctx.globalCompositeOperation='lighter'; var g=ctx.createRadialGradient(cx,cy,0,cx,cy,S*1.4);
+    g.addColorStop(0,col(C_GOLD,0.5*bloom)); g.addColorStop(1,col(C_GOLD,0));
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,S*1.4,0,TWO); ctx.fill(); ctx.globalCompositeOperation='source-over'; }
+}
+seedDust(); seedSeeds(); resize(); requestAnimationFrame(frame);
+setTimeout(function(){ document.getElementById('herosec').classList.add('show'); }, 1250);
+})();
+
+// ambient warm dust, drifting across the whole page
+(function(){
+  var c=document.getElementById('weave'), x=c.getContext('2d'), W,H,DPR, dust=[];
+  function size(){DPR=Math.min(2,window.devicePixelRatio||1);W=innerWidth;H=innerHeight;c.width=W*DPR;c.height=H*DPR;c.style.width=W+'px';c.style.height=H+'px';x.setTransform(DPR,0,0,DPR,0,0);}
+  size(); addEventListener('resize',size);
+  function col(c2,a){return 'rgba('+c2[0]+','+c2[1]+','+c2[2]+','+a+')';}
+  for(var i=0;i<42;i++)dust.push({x:Math.random(),y:Math.random(),r:12+Math.random()*58,a:0.010+Math.random()*0.04,vx:(Math.random()-.5)*0.003,vy:(Math.random()-.5)*0.003,ph:Math.random()*6.28,c:Math.random()<0.72?[236,210,160]:[200,210,230]});
+  var t=0;(function f(){t+=0.006;x.clearRect(0,0,W,H);x.globalCompositeOperation='lighter';
+    for(var i=0;i<dust.length;i++){var d=dust[i];d.x+=d.vx*0.004;d.y+=d.vy*0.004;
+      if(d.x<-.1)d.x=1.1;if(d.x>1.1)d.x=-.1;if(d.y<-.1)d.y=1.1;if(d.y>1.1)d.y=-.1;
+      var tw=0.6+0.4*Math.sin(t*0.6+d.ph),xx=d.x*W,yy=d.y*H;
+      var g=x.createRadialGradient(xx,yy,0,xx,yy,d.r);g.addColorStop(0,col(d.c,d.a*tw));g.addColorStop(1,col(d.c,0));
+      x.fillStyle=g;x.beginPath();x.arc(xx,yy,d.r,0,6.2832);x.fill();}
+    x.globalCompositeOperation='source-over';requestAnimationFrame(f);})();
+})();
+
+// reveal on scroll
+(function(){
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.12,rootMargin:'0px 0px -40px 0px'});
+  document.querySelectorAll('.rv').forEach(function(el){io.observe(el);});
+})();
+
+(function(){
+const TWO=Math.PI*2;
+const lp=(a,b,k)=>a+(b-a)*k, clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const cv=document.getElementById('pcanvas'),ctx=cv.getContext('2d');
+let W,H,DPR,cx,cy,S;
+const N=84,M=40;
+
+const C_BASE=[112,162,216],C_WARM=[232,150,92],C_GREEN=[86,216,150],C_RED=[233,92,78],
+      C_AMBER=[233,176,86],C_GOLD=[245,205,120],C_THINK=[150,140,235];
+const col=(c,a)=>`rgba(${c[0]|0},${c[1]|0},${c[2]|0},${a})`;
+const mixC=(a,b,k)=>[lp(a[0],b[0],k),lp(a[1],b[1],k),lp(a[2],b[2],k)];
+
+let rot=0,weaveY=-1,weaveDir=1,shuttleAng=0,mouseNX=0,mouseNY=0;
+let morph=0,morphT=0,curAudio=null;
+const P={rotS:.05,breath:.9,weft:.5,bright:.55,warm:.12,lean:.3,taut:1.0},T={...P};
+const STATES={
+  resting:{rotS:.05,breath:.9,weft:.5,bright:.55,warm:.12,lean:.3,taut:1.0},
+  listening:{rotS:.018,breath:1.12,weft:.6,bright:.74,warm:.18,lean:1.0,taut:1.05},
+  thinking:{rotS:.13,breath:.7,weft:1.0,bright:.86,warm:.32,lean:.5,taut:.88},
+  speaking:{rotS:.055,breath:.86,weft:.9,bright:1.0,warm:.55,lean:.6,taut:1.0}};
+let curState="resting";
+const STATE_LBL={resting:"present, ready when you are",listening:"listening",thinking:"gathering",speaking:"speaking"};
+let _seq=null;
+function setState(s){curState=s;Object.assign(T,STATES[s]);
+  document.getElementById('pstate').textContent=STATE_LBL[s];
+  if(s==='thinking')startSeq(); else stopSeq();}
+function startSeq(){stopSeq();const lines=["gathering the threads","reading your memory","weaving a thought"];
+  const el=document.getElementById('pstate');let i=0;el.textContent=lines[0];
+  _seq=setInterval(()=>{i=(i+1)%lines.length;if(curState==='thinking')el.textContent=lines[i];},2100);}
+function stopSeq(){if(_seq){clearInterval(_seq);_seq=null;}}
+
+let moodC=[...C_BASE],moodCT=[...C_BASE],moodAmt=0,moodAmtT=0,unfurl=0,thinkAmt=0,thinkAmtT=0;
+function theme(kind){
+  if(kind==='reveal'){moodCT=C_GOLD;moodAmtT=0.5;unfurl=1.8;}
+  else if(kind==='tension'){moodCT=C_RED;moodAmtT=0.55;}
+  else if(kind==='insight'){moodCT=C_GREEN;moodAmtT=0.5;}
+  else{moodCT=C_BASE;moodAmtT=0;}}
+function tcol(ew,a){let r=lp(C_BASE[0],C_WARM[0],ew),g=lp(C_BASE[1],C_WARM[1],ew),b=lp(C_BASE[2],C_WARM[2],ew);
+  r=lp(r,moodC[0],moodAmt);g=lp(g,moodC[1],moodAmt);b=lp(b,moodC[2],moodAmt);
+  const tk=thinkAmt*0.55;r=lp(r,C_THINK[0],tk);g=lp(g,C_THINK[1],tk);b=lp(b,C_THINK[2],tk);
+  return `rgba(${r|0},${g|0},${b|0},${a.toFixed(3)})`;}
+function rad(v,br){return S*0.96*(1-0.16*v*v)*br*P.taut;}
+
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);W=cv.clientWidth;H=cv.clientHeight;
+  cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);
+  cx=W*0.5;cy=H*0.44;S=Math.min(W,H)*0.27;
+  if(typeof scLayout==='function')scLayout();}
+addEventListener('resize',resize);
+cv.addEventListener('pointermove',function(e){var r=cv.getBoundingClientRect();mouseNX=clamp(((e.clientX-r.left)/r.width)*2-1,-1,1);mouseNY=clamp(((e.clientY-r.top)/r.height)*2-1,-1,1);});
+
+/* the gather: records being consulted */
+let consultNodes=[];
+function setConsult(list){
+  const items=list.slice(0,7),n=items.length,Rx=Math.min(W*0.40,520);
+  consultNodes=items.map((it,i)=>{
+    const side=(i%2===0)?-1:1, perSide=(side<0)?Math.ceil(n/2):Math.floor(n/2), rank=Math.floor(i/2);
+    const fy=perSide>1?rank/(perSide-1):0.5;
+    const y=cy+lp(-S*0.55,S*0.62,fy), x=cx+side*Rx*(0.9+0.07*Math.sin(i*1.7));
+    return {label:it.label,sealed:!!it.sealed,x,y,lit:0,litT:0,side};});
+  consultNodes.forEach((nd,i)=>setTimeout(()=>{nd.litT=1;},150+i*150));}
+function clearConsult(){consultNodes.forEach(n=>n.litT=0);setTimeout(()=>{consultNodes=[];},700);}
+function drawConsult(t){
+  for(let i=0;i<consultNodes.length;i++){const n=consultNodes[i];
+    n.lit=lp(n.lit,n.litT,0.09);if(n.lit<0.02)continue;
+    const a=n.lit*Math.max(thinkAmt,0.15),cc=n.sealed?C_AMBER:C_THINK;
+    ctx.globalCompositeOperation='lighter';
+    ctx.strokeStyle=col(cc,a*0.26);ctx.lineWidth=1;
+    const mx=(n.x+cx)/2+Math.sin(t*1.4+i)*10,my=(n.y+cy)/2+Math.cos(t*1.4+i)*10;
+    ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.quadraticCurveTo(mx,my,cx,cy);ctx.stroke();
+    const u=(Math.sin(t*1.1+i*1.3)*0.5+0.5);
+    const bx=(1-u)*(1-u)*n.x+2*(1-u)*u*mx+u*u*cx,by=(1-u)*(1-u)*n.y+2*(1-u)*u*my+u*u*cy;
+    ctx.fillStyle=col(cc,a*0.7);ctx.beginPath();ctx.arc(bx,by,1.7,0,TWO);ctx.fill();
+    const gr=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,13);
+    gr.addColorStop(0,col(cc,a*0.6));gr.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=gr;ctx.beginPath();ctx.arc(n.x,n.y,13,0,TWO);ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+    ctx.font="11.5px -apple-system,Segoe UI,Roboto,sans-serif";
+    ctx.fillStyle=col(n.sealed?[230,198,152]:[216,216,246],a);
+    ctx.textAlign=n.side<0?'left':'right';
+    const lbl=n.label.length>30?n.label.slice(0,29)+'…':n.label;
+    ctx.fillText(lbl,n.x+(n.side<0?14:-14),n.y+4);ctx.textAlign="center";}}
+function drawThinking(t){
+  if(thinkAmt<0.02)return;
+  ctx.globalCompositeOperation='lighter';
+  const cr=12+20*thinkAmt+4*Math.sin(t*2.2);
+  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,cr);
+  g.addColorStop(0,col(C_THINK,0.55*thinkAmt));g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,cr,0,TWO);ctx.fill();
+  for(let i=0;i<4;i++){const ph=t*(2.1+i*0.55)+i*1.7,vy=Math.sin(ph)*0.92,ang=rot+ph*2.0+i*(TWO/4);
+    const r=S*0.9*(1-0.16*vy*vy)*(1-0.13*thinkAmt),z3=r*Math.sin(ang),x3=r*Math.cos(ang),sc=3.0/(3.0-z3/S);
+    const sx=cx+x3*sc,sy=cy+vy*S*0.9*sc,db=clamp((z3/S+1)/2,0,1),a=thinkAmt*(0.3+0.55*db);
+    const gg=ctx.createRadialGradient(sx,sy,0,sx,sy,6+5*db);
+    gg.addColorStop(0,col(mixC(C_THINK,C_GOLD,0.28),a));gg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=gg;ctx.beginPath();ctx.arc(sx,sy,6+5*db,0,TWO);ctx.fill();}
+  ctx.globalCompositeOperation='source-over';}
+
+/* ===== the visual language, scene renderer (D-153), driven live by the mind's scene spec ===== */
+const SC_C={client:[90,160,224],vendor:[232,176,86],hub:[240,196,150],person:[183,155,230],project:[150,180,232],claim:[150,180,232],observed:[232,150,92],event:[120,180,220],gap:[150,165,195],knot:[233,120,92]};
+let scNodes={},scLinks=[],scKnot=null,scForm='none',scKnotAmt=0,scKnotAmtT=0,scTlAmt=0,scTlAmtT=0;
+let scTl=null;                                   // the timeline's own geometry, when it is in time
+const SC_MAX_NODES=9;                             // rows a picture can hold and still be read
+// EVERY FIELD THE LAYOUT READS HAS TO BE COPIED HERE. setScene builds `parts` with the date on
+// them, but the objects the layout actually reads are these, and this function copied only the
+// label and the kind -- so `at` was dropped one step after being added and the timeline fell back
+// to even spacing while the model was supplying perfectly good dates. Caught live, by reading the
+// page's own state, after the schema and the prompt had both been blamed. `t` was never copied
+// either, so the fallback's sort by sequence has always been a no-op riding on insertion order.
+function scEnsure(n){const e=scNodes[n.id]||(scNodes[n.id]={x:cx,y:cy,tx:cx,ty:cy,ap:0,apT:0,side:0});
+ e.label=n.label;e.kind=n.kind||'client';e.at=n.at||'';e.t=(typeof n.t==='number')?n.t:0;return e;}
+function setScene(spec){
+ if(!spec||!spec.form||spec.form==='none'){clearScene();return;}
+ scForm=spec.form;const present=new Set();
+ let parts=(spec.nodes||[]);
+ if(scForm==='timeline')parts=(spec.timeline||[]).map((e,i)=>({id:'ev'+i,label:e.label,kind:e.kind||'event',t:i,at:e.at||''}));
+ // A picture with more rows than the screen can hold legibly is not a fuller picture, it is an
+ // unreadable one. Keep the vendor and the claims, which carry the point, then as many of the
+ // rest as fit. Announced rather than silent: a cap nobody can see reads as "that was all of it".
+ if(parts.length>SC_MAX_NODES){
+   const rank=(n)=>{const k=(n&&n.kind)||'client';
+     return (k==='hub'||k==='vendor')?0:(k==='claim'||k==='observed')?1:2;};
+   const kept=parts.slice().sort((a,b)=>rank(a)-rank(b)).slice(0,SC_MAX_NODES);
+   console.warn('scene: showing '+kept.length+' of '+parts.length+' nodes, the rest will not fit legibly');
+   parts=parts.filter(p=>kept.indexOf(p)>=0);   // keep the original order among the survivors
+ }
+ parts.forEach(n=>{if(!n||!n.id)return;const e=scEnsure(n);present.add(n.id);e.t=n.t;});
+ for(const id in scNodes)scNodes[id].apT=present.has(id)?1:0;
+ scLinks=(spec.links||[]).map(l=>({...l,ap:0,apT:(scForm==='braid'||scForm==='constellation')?1:0}));
+ scKnot=(scForm==='braid'&&spec.knot&&spec.knot.between&&spec.knot.between.length===2)?spec.knot:null;scKnotAmtT=scKnot?1:0;
+ scTlAmtT=(scForm==='timeline')?1:0;
+ scLayout();
+}
+function clearScene(){for(const id in scNodes)scNodes[id].apT=0;scLinks.forEach(l=>l.apT=0);scKnotAmtT=0;scTlAmtT=0;}
+/* ---------------------------------------------------------------------------------------
+   LAYING OUT A PICTURE SOMEONE HAS TO READ.
+
+   The first version placed every label centred on its own dot. That is fine when labels are
+   one word and fatal when they are a record title, because "Move churn completes off PanelPro
+   to Cobalt Telecom" centred on a dot in the left column reaches most of the way across the
+   picture and lands on top of whatever is in the middle. Two rows landing at the same height
+   made it worse: nothing moved out of the way, so the two titles simply printed over each
+   other. A drawing whose whole claim is that it makes a situation legible cannot do that.
+
+   Three rules now, in order of how much they matter.
+   Labels sit BESIDE their dot and face outward, so text in the left column grows leftward and
+   away from the picture instead of through it.
+   Rows are pushed apart until no two can touch, and the column is then recentred so pushing
+   things apart does not walk the whole column off the bottom of the screen.
+   A label that still does not fit is shortened rather than allowed to run, and a picture with
+   more nodes than can be read is cut down to the ones that carry the point, out loud in the
+   console rather than silently.
+--------------------------------------------------------------------------------------- */
+const SC_ROW=27;                                  // closest two rows may sit, in pixels
+const EDGE_PAD=18;                                // nothing is drawn closer than this to an edge
+function scLabelW(){return Math.max(120,Math.min(W*0.235,290));}
+/* THE BAND THE DRAWING MAY USE.
+   The picture is not alone on the screen. Underneath it sit the spoken line, the transcript when
+   quiet mode is on, and the dock, and all three of those are words. A node placed by the drawing
+   knows nothing about them, so the lowest row in a column printed straight through the sentence
+   Weave had just said. The reader cannot tell which layer is which; they only see two pieces of
+   text on top of each other.
+   The bottom of the caption zone is reserved rather than measured, because the caption comes and
+   goes with every turn and a picture that shuffles upward each time Weave speaks would be worse
+   than the overlap. The transcript IS measured, because it grows as the conversation grows and
+   guessing its height would be wrong within about three turns. */
+function scBand(){
+  const top=Math.max(78,H*0.13);
+  let bottom=H-250;                               // reserved: the spoken line and the dock
+  const tr=(typeof trEl!=='undefined')?trEl:null;
+  if(tr&&tr.classList.contains('show')){
+    const r=tr.getBoundingClientRect();
+    if(r.height>4)bottom=Math.min(bottom,r.top-26);
+  }
+  if(bottom-top<150)bottom=top+150;               // never squeeze the picture out of existence
+  return {mid:(top+bottom)/2,half:(bottom-top)/2};
+}
+function scSpread(list,mid){
+  if(list.length<2)return;
+  list.sort((a,b)=>a.ty-b.ty);
+  for(let i=1;i<list.length;i++)if(list[i].ty-list[i-1].ty<SC_ROW)list[i].ty=list[i-1].ty+SC_ROW;
+  // Recentre, so a column that had to grow does not end up hanging off the bottom.
+  const shift=mid-(list[0].ty+list[list.length-1].ty)/2;
+  list.forEach(e=>{e.ty+=shift;});
+}
+function scColumn(list,x,side,span,mid){
+  const n=list.length;if(!n)return;
+  list.forEach((e,i)=>{e.tx=x;e.ty=mid+(n>1?lp(-span,span,i/(n-1)):0);e.side=side;});
+  scSpread(list,mid);
+}
+function scLayout(){
+ const band=scBand();
+ const Uu=Math.min(W*0.30,440),Vv=Math.min(H*0.26,300,band.half);
+ const live=Object.values(scNodes).filter(n=>n.apT>0);
+ const hub=live.find(n=>n.kind==='hub'||n.kind==='vendor');
+ const claims=live.filter(n=>n.kind==='claim'||n.kind==='observed');
+ scTl=null;                                       // never let one form's geometry leak into the next
+ if(scForm==='braid'){
+   // Everything that is not the vendor or a claim shares one column, sorted so records sit
+   // together and people sit together rather than interleaving. Two columns at slightly
+   // different depths only worked while labels were short.
+   const rank={client:0,project:1,event:2,gap:3,person:4};
+   const left=live.filter(n=>n!==hub&&claims.indexOf(n)<0)
+                  .sort((a,b)=>(rank[a.kind]==null?9:rank[a.kind])-(rank[b.kind]==null?9:rank[b.kind]));
+   // The columns sit a little further in than they used to, because a label needs the space
+   // between its dot and the edge of the screen and there was not enough of it.
+   scColumn(left,cx-Uu*0.92,-1,Vv*0.95,band.mid);
+   if(hub){hub.tx=cx-Uu*0.02;hub.ty=band.mid;hub.side=0;}
+   scColumn(claims,cx+Uu*0.92,1,Vv*0.62,band.mid);
+ }else if(scForm==='timeline'){
+   const evs=live.slice().sort((a,b)=>(a.t||0)-(b.t||0));
+   scTl=scTimelineLayout(evs,cx,Uu,Vv,band);
+   if(scTl){evs.forEach(e=>{e.side=0;});}
+   else{
+   // ALTERNATING TWO ROWS ONLY SEPARATES CONSECUTIVE LABELS. Events i and i+2 share a row and sit
+   // 2 x step apart, and every label was trimmed to the same fixed width regardless -- on a real
+   // ten-event timeline that is a 244px gap holding a 377px label, so the row overlapped itself
+   // into an unreadable smear. Seen on the live surface, 28 September, on an Orsa timeline.
+   //
+   // The width a label may take is now the room that actually exists on its own row -- the gap to
+   // its same-row neighbour -- and the number of rows grows when two rows cannot give a label
+   // enough of one. Four rows rather than three, interleaved so consecutive events stay far apart
+   // vertically as well as horizontally.
+   // NO DATES: the even-spacing fallback, unchanged. Nothing regresses when the model omits `at`.
+   const n=evs.length, spanX=Uu*2.1, step=n>1?spanX/(n-1):spanX;
+   const rows=(step*2*0.9>=150)?2:4;
+   const LANES=rows===2?[-0.85,0.85]:[-1.75,0.9,-0.9,1.75];
+   const tw=Math.min(scLabelW()*1.3, step*rows*0.9);
+   evs.forEach((e,i)=>{e.tx=lp(cx-Uu*1.05,cx+Uu*1.05,n>1?i/(n-1):.5);
+     e.ty=band.mid-Vv*0.1+LANES[i%rows]*SC_ROW;e.side=0;e.tw=tw;});
+   }
+ }else{
+   live.forEach((n,i)=>{const a=(i/Math.max(live.length,1))*TWO-Math.PI/2;
+     n.tx=cx+Math.cos(a)*Uu*0.82;n.ty=band.mid+Math.sin(a)*Vv*0.92;
+     n.side=Math.cos(a)<-0.25?-1:Math.cos(a)>0.25?1:0;});
+ }
+}
+function scPos(id){return scNodes[id];}
+function scStrand(A,B,role,t,ap){
+ if(!A||!B||ap<0.02)return;
+ const bow=role==='braid'?0.13:role==='tension'?-0.26:0;
+ const mx=(A.x+B.x)/2,my=(A.y+B.y)/2;let nx=-(B.y-A.y),ny=(B.x-A.x);const nl=Math.hypot(nx,ny)||1;nx/=nl;ny/=nl;
+ const ctrlx=mx+nx*bow*Math.min(W,H),ctrly=my+ny*bow*Math.min(W,H);
+ const cc=role==='braid'?SC_C.hub:role==='tension'?SC_C.vendor:SC_C.client;
+ ctx.globalCompositeOperation='lighter';const subs=role==='braid'?3:1;
+ for(let s=0;s<subs;s++){const ph=t*0.8+s*(TWO/subs);ctx.beginPath();const segs=42;
+   for(let i=0;i<=segs;i++){const u=i/segs,iu=1-u;
+     const x=iu*iu*A.x+2*iu*u*ctrlx+u*u*B.x,y=iu*iu*A.y+2*iu*u*ctrly+u*u*B.y;
+     let nxx=-(2*iu*(ctrly-A.y)+2*u*(B.y-ctrly)),nyy=(2*iu*(ctrlx-A.x)+2*u*(B.x-ctrlx));const nn=Math.hypot(nxx,nyy)||1;nxx/=nn;nyy/=nn;
+     const env=Math.sin(u*Math.PI),off=(role==='braid'?7:3)*Math.sin(u*Math.PI*(role==='braid'?3:1)+ph)*env;
+     i?ctx.lineTo(x+nxx*off,y+nyy*off):ctx.moveTo(x+nxx*off,y+nyy*off);}
+   ctx.strokeStyle=col(cc,(role==='tension'?0.5:0.4)*ap);ctx.lineWidth=role==='braid'?1.4:1.1;
+   if(role==='tension'){ctx.setLineDash([6,7]);ctx.lineDashOffset=-t*22;}else ctx.setLineDash([]);
+   ctx.stroke();ctx.setLineDash([]);}
+ if(role==='braid'){const u=(Math.sin(t*0.9)*0.5+0.5);const x=(1-u)*(1-u)*A.x+2*(1-u)*u*ctrlx+u*u*B.x,y=(1-u)*(1-u)*A.y+2*(1-u)*u*ctrly+u*u*B.y;
+   const g=ctx.createRadialGradient(x,y,0,x,y,9);g.addColorStop(0,col(SC_C.hub,0.7*ap));g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,9,0,TWO);ctx.fill();}
+ ctx.globalCompositeOperation='source-over';
+}
+function scNodeDot(n,t){
+ if(n.ap<0.02)return;const c=SC_C[n.kind]||SC_C.client,pulse=0.7+0.3*Math.sin(t*1.5+n.x*0.01);
+ const isHub=n.kind==='hub'||n.kind==='vendor';const rr=isHub?7:5;
+ // WHILE WEAVE IS SPEAKING ABOUT THIS MOMENT, THIS MOMENT HOLDS THE LIGHT. The founder asked for
+ // the brightening he had seen to be kept and made part of the language: it is what lets the eye
+ // follow a spoken answer across a picture instead of hunting for the place being described.
+ const fo=n.focus||0, dimf=(typeof scTlDim==='function'&&scTl&&n.tier)?scTlDim(n):1;
+ const glow=(isHub?32:19)*(1+fo*0.9);
+ ctx.globalCompositeOperation='lighter';
+ const g=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,glow);g.addColorStop(0,col(c,(0.5+0.45*fo)*n.ap*pulse*dimf));g.addColorStop(1,'rgba(0,0,0,0)');
+ ctx.fillStyle=g;ctx.beginPath();ctx.arc(n.x,n.y,glow,0,TWO);ctx.fill();
+ // A ring standing off the point, the way a held note is drawn rather than simply made louder.
+ if(fo>0.03){
+   ctx.strokeStyle=col(c,0.38*fo*n.ap);ctx.lineWidth=1;
+   ctx.beginPath();ctx.arc(n.x,n.y,rr+6+3*fo,0,TWO);ctx.stroke();
+ }
+ ctx.globalCompositeOperation='source-over';
+ // AN EVENT STILL TO COME IS DRAWN HOLLOW. On a timeline the eye should be able to tell what has
+ // happened from what is scheduled without reading a word of it.
+ ctx.beginPath();ctx.arc(n.x,n.y,rr*(n.tier==='s'?0.72:1),0,TWO);
+ if(n.future){ctx.strokeStyle=col(c,Math.min(1,n.ap*1.2)*dimf);ctx.lineWidth=1.6;ctx.stroke();}
+ else{ctx.fillStyle=col(c,Math.min(1,n.ap*1.2)*dimf);ctx.fill();}
+ ctx.font=(isHub?'600 14px ':'12px ')+(isHub?'"Iowan Old Style",Georgia,serif':'sans-serif');
+ ctx.fillStyle=col(isHub?[245,220,190]:[210,220,240],n.ap);
+ const side=n.side||0;
+ if(side===0){
+   // A label may take only the room its own side leaves it (n.tw, set by the timeline layout), and
+   // it is nudged inward so the ends of the run do not hang off the side of the picture -- the dot
+   // stays where time puts it, only the words move.
+   ctx.textAlign='center';
+   // tw===0 means the layout found no room for this label. The dot still draws, in its right
+   // place in time; the words are dropped rather than stacked on a neighbour's.
+   if(scTl&&n.tier&&n.tw!==0){
+     // TWO VOICES, AND THE DATE UNDER THE WORDS. The first voice speaks in the serif at full size;
+     // the second is smaller and dimmer on the end of its stem. A caption always sits on the side
+     // the curve left open, so it grows INTO the space rather than across the line -- which is the
+     // whole reason the line became a curve.
+     const dim=scTlDim(n), prim=n.tier==='p', sd=n.capSide||-1;
+     ctx.font=(prim?'13.5px ':'11.5px ')+'"Iowan Old Style",Georgia,serif';
+     const rows=scWrap(n.label,n.tw||scLabelW(),2);
+     let wmax=0; for(const r of rows)wmax=Math.max(wmax,ctx.measureText(r).width);
+     const half=wmax/2+10, x=Math.max(half,Math.min(W-half,n.x));
+     const ms=scTlDate(n.at), hasDate=Number.isFinite(ms);
+     const lh=prim?16:14, dh=hasDate?(prim?15:13):0;
+     // THE BAND IS THE ANCHOR. Above the curve the band marks the BOTTOM of the block, so a second
+     // line grows upward into open sky; below it marks the top. Either way the block only ever
+     // grows away from the picture, never back through it.
+     const cy=(n.cy==null?n.capY:n.cy);
+     const top=sd<0 ? cy-dh-(rows.length-1)*lh : cy;
+     ctx.fillStyle=col([226,234,248],n.ap*dim*(prim?1:0.76));
+     for(let i=0;i<rows.length;i++)ctx.fillText(rows[i],x,top+i*lh);
+     if(hasDate){
+       ctx.font=(prim?'10px ':'9.5px ')+'sans-serif';
+       ctx.fillStyle=col([146,164,198],n.ap*dim*(prim?0.8:0.6));
+       ctx.fillText(prim?scTlFull(ms):scTlDay(ms),x,top+(rows.length-1)*lh+dh);
+     }
+   }else if(n.tw!==0){
+     const wmax=n.tw||scLabelW()*1.3, txt=scFit(n.label,wmax), half=ctx.measureText(txt).width/2+8;
+     const below=!!(scTl&&n.ty>scTl.axisY);
+     ctx.fillText(txt,Math.max(half,Math.min(W-half,n.x)),n.y+(below?16:-(isHub?16:13)));
+   }
+ }
+ else{
+   // The budget is whichever is smaller, the width a label is allowed or the width that actually
+   // exists between this dot and the edge of the screen. Shortening to a fixed 290 pixels was not
+   // enough on its own: the column sat 250 pixels from the left edge, so a label trimmed to fit
+   // the rule still ran off the side of the picture and lost its first few characters.
+   const room=(side<0?n.x:W-n.x)-13-EDGE_PAD;
+   ctx.textAlign=side<0?'right':'left';
+   ctx.fillText(scFit(n.label,Math.min(scLabelW(),room)),n.x+side*13,n.y+4);
+ }
+}
+/* Shorten a label that will not fit rather than letting it run across the picture. Measuring
+   needs the font that is about to be used, so this is done at draw time and cached. */
+const _fitCache=new Map();
+function scFit(text,maxw){
+  const s=String(text==null?'':text);
+  const key=s+'|'+ctx.font+'|'+Math.round(maxw);
+  if(_fitCache.has(key))return _fitCache.get(key);
+  let out=s;
+  if(ctx.measureText(out).width>maxw){
+    while(out.length>6&&ctx.measureText(out+'…').width>maxw)out=out.slice(0,-1);
+    out=out.replace(/[\s,;:·(-]+$/,'')+'…';
+  }
+  if(_fitCache.size>400)_fitCache.clear();
+  _fitCache.set(key,out);return out;
+}
+/* BREAK A CAPTION OVER TWO LINES RATHER THAN CUTTING IT SHORT. An ellipsis is a confession that
+   the picture could not carry the words; the references carry them on two lines and read better
+   for it. Only the last line is ever trimmed, and only if even two lines will not hold it. */
+function scWrap(text,maxw,maxLines){
+  const s=String(text==null?'':text).trim();
+  if(maxLines<=1||ctx.measureText(s).width<=maxw)return [scFit(s,maxw)];
+  const words=s.split(/\s+/), rows=[];
+  let line='';
+  for(const w of words){
+    const next=line?line+' '+w:w;
+    if(ctx.measureText(next).width<=maxw||!line){line=next;continue;}
+    rows.push(line); line=w;
+    if(rows.length===maxLines-1)break;
+  }
+  const used=rows.join(' ');
+  const restStart=used?s.slice(used.length).trim():s;
+  rows.push(scFit(restStart,maxw));
+  return rows.slice(0,maxLines);
+}
+function scKnotDetail(t){
+ if(!scKnot||scKnotAmt<0.05)return;const a=scPos(scKnot.between[0]),b=scPos(scKnot.between[1]);if(!a||!b)return;
+ const kx=(a.x+b.x)/2,ky=(a.y+b.y)/2;
+ scStrand(a,{x:kx,y:ky},'tension',t,scKnotAmt);scStrand(b,{x:kx,y:ky},'tension',t,scKnotAmt);
+ ctx.globalCompositeOperation='lighter';const gl=14+6*scKnotAmt+2*Math.sin(t*9);
+ const g=ctx.createRadialGradient(kx,ky,0,kx,ky,gl);g.addColorStop(0,col(SC_C.knot,0.6*scKnotAmt));g.addColorStop(1,'rgba(0,0,0,0)');
+ ctx.fillStyle=g;ctx.beginPath();ctx.arc(kx,ky,gl,0,TWO);ctx.fill();ctx.globalCompositeOperation='source-over';
+ // The knot label sits between two nodes, so it is the line most likely to land on one of them.
+ // Push it clear of the pair and shorten it on the same rule as everything else.
+ // The knot sits between two nodes, which in a braid means it sits in the right-hand column, so
+ // a label centred on it runs straight off the edge of the screen. Shorten it, then slide the
+ // centre inward until the whole line fits. It stays visibly attached to the knot because it is
+ // still the only thing drawn at that height.
+ if(scKnot.label){ctx.font="italic 11.5px "+'"Iowan Old Style",Georgia,serif';ctx.textAlign='center';
+   ctx.fillStyle=col(SC_C.knot,scKnotAmt*0.9);
+   const txt=scFit(scKnot.label,Math.min(W*0.3,340));
+   const half=ctx.measureText(txt).width/2;
+   ctx.fillText(txt,clamp(kx,EDGE_PAD+half,W-EDGE_PAD-half),ky-24);}
+}
+/* ============================= a timeline that is actually in time =============================
+   Until 28 September this form positioned events by their INDEX -- `t:i`, evenly spaced -- and the
+   schema gave the model nowhere to put a date at all. A run of events from July to December with a
+   cluster in late September drew as nine identical gaps. The founder's verdict was exact: "calling
+   it a visual timeline is a stretch, it's more a series of bullets arranged in a pattern." He was
+   right; duration and clustering are what a timeline is FOR, and both were being discarded.
+
+   Events now carry `at` from the record. Where at least two parse and differ, x comes from the
+   date, so a six-week gap looks like a six-week gap and three things in one week look crowded --
+   because they are. Where they do not, the old even spacing runs unchanged.
+
+   LABELS ARE PLACED GREEDILY RATHER THAN BY ALTERNATING ROWS. Once x comes from a date the spacing
+   is uneven, so "every other one, above and below" stops meaning anything: two events on the same
+   day sit on top of each other whatever row they are in. Each label instead takes the first lane
+   whose last label ends before this one would start. That is the standard cartographic answer and
+   it degrades honestly -- a crowded week uses more lanes, rather than overlapping. */
+/* ===================== TIME, EASED, AND A CURVE THAT OPENS ROOM ===============================
+   The founder, on the dated-but-straight version: "it always looks cluttered largely because it's
+   maintaining a completely linear visual flow instead of creatively using the balance of the empty
+   screen real estate."
+
+   That is the correct diagnosis and it goes deeper than the labels. I had been treating "timeline"
+   as A LINE, so every fix was a better line: better spacing on the line, better trimming on the
+   line, a weightier line. The references share a form that is not a line at all. A curve opens
+   pockets of space above its crests and below its troughs, and the words live in the pockets. The
+   space does the work that lane-shuffling could never do.
+
+   TWO decisions carry this, and both are trades worth naming rather than burying.
+
+   ONE. EASED TIME. Raw proportional time is what made the picture cluttered: six Orsa events fall
+   inside 83 pixels because they fall inside eleven days, and no label placement makes eleven days
+   wide enough to read. Ordinal spacing would be graceful and would lie about how long things took.
+   So each gap is taken to a power below one and blended with an even share. ORDER IS EXACTLY
+   PRESERVED, which is what the ordering fault class actually checks, and a long gap still draws
+   visibly longer than a short one, so the shape of the engagement survives. Strict proportionality
+   is given up deliberately, in exchange for a cluster that can be read.
+
+   TWO. TWO VOICES. A caption every ninety pixels is a list read sideways. The references carry a
+   few events in full voice on the curve and hang the rest below it in a smaller one. The tier is
+   chosen from what Weave already knows -- a tension rather than a plain event, the ends of the
+   run, and how much room an event has around it -- so NO NEW SEMANTICS are invented to draw it.
+
+   WHAT IS DELIBERATELY NOT BUILT: the chapter form, where events group under named headings like
+   "Setting the Terms". It is the most beautiful of the three references and it requires Weave to
+   NAME a grouping, which is a generated claim about a client's business that no fault class in
+   verify.js can check. That is a new kind of unverified assertion and it is not going on a pilot
+   client's screen. It is worth building behind a verifier class, after. */
+const SC_TL_EASE=0.5;                            // power on each gap; below 1 compresses the long ones
+const SC_TL_EVEN=0.35;                           // how much even spacing is blended in
+/* CAPTIONS LIVE IN BANDS, NOT WHEREVER THEIR DOT HAPPENS TO BE.
+   Hanging each caption off its own point looked correct and was measured wrong. Alternating sides
+   only separates two captions if the two sides occupy separate heights, and on a steep part of the
+   curve they do not: a "below" caption from a point high on the line lands at the same height as an
+   "above" caption from a point low on it. Rendered proof, 29 September: "Rate discrepancy flagged"
+   ran straight through "SOW signature deadline" while every same-side check passed.
+   Four fixed bands -- loud above, quiet above, quiet below, loud below -- make a collision between
+   two bands geometrically impossible, and reduce the problem inside a band to the one-dimensional
+   neighbour test that was already correct. The leader line absorbs the varying distance, which is
+   what the references do and why their captions sit so calmly. */
+const SC_TL_BAND_IN=38;                          // a quiet caption sits just outside the swing
+const SC_TL_BAND_OUT=90;                         // a loud one sits further out, on a line of its own
+const SC_TL_GUT=10;                              // breathing room each side of a caption, as drawn
+// A CAPTION IS CENTRED, SO TWO NEIGHBOURS EACH SPEND HALF THEIR WIDTH ON THE GAP BETWEEN THEM.
+// At 18 this was off by exactly the two margins: both captions took the full budget, each added
+// its own 10px of breathing room, and they met 2px inside each other. Found by running the layout
+// rather than by reading it. The pad must cover BOTH margins plus the clear space wanted between,
+// so it is 2*SC_TL_GUT + 10 and is written that way rather than as a number that looks arbitrary.
+const SC_TL_PAD=2*SC_TL_GUT+10;                  // clear space demanded between two captions on a side
+const SC_TL_MIN=64;                              // below this a caption is not worth reading; drop it, keep the dot
+function scTlDate(v){
+  const s=String(v==null?'':v).trim();
+  let m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s); if(m)return Date.parse(m[0]+'T00:00:00Z');
+  m=/^(\d{4})-(\d{2})$/.exec(s); if(m)return Date.parse(m[0]+'-01T00:00:00Z');
+  return NaN;
+}
+const SC_MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const scTlDay=(ms)=>{const d=new Date(ms);return d.getUTCDate()+' '+SC_MON[d.getUTCMonth()];};
+const scTlFull=(ms)=>{const d=new Date(ms);return d.getUTCDate()+' '+SC_MON[d.getUTCMonth()]+' '+d.getUTCFullYear();};
+// Fewer events want a longer, calmer swing; more events want more undulation to make more pockets.
+function scTlWaves(n){ return n<=3?1:(n<=6?1.5:2.5); }
+
+/* THE NARRATION FOCUS. The founder noticed it and asked for it kept: "during the Weave narration
+   on certain points there was a brightening/focus placed on that portion of the timeline which I
+   think helps the reader follow the narrative."
+
+   It is bound to the spoken answer rather than to a timer. Each event's distinctive words are
+   looked for in the speech, and where they first appear gives that event its moment as a fraction
+   of the whole answer. As the audio plays, the event whose moment has just passed takes the light
+   and the others fall back. No model call, no timing data from the voice: it reads the text Weave
+   already wrote against the labels it already drew. */
+let scTlCue=[], scTlFocusOn=false;
+function scTlBuildCues(speech){
+  scTlCue=[]; scTlFocusOn=false;
+  for(const id in scNodes){scNodes[id].focusT=0;}
+  const txt=String(speech||'').toLowerCase();
+  if(!txt)return;
+  for(const id in scNodes){
+    const n=scNodes[id];
+    if(!Number.isFinite(scTlDate(n.at)))continue;
+    const toks=String(n.label||'').toLowerCase().split(/[^a-z0-9$]+/).filter(w=>w.length>3);
+    let best=-1;
+    for(const w of toks){const k=txt.indexOf(w); if(k>=0&&(best<0||k<best))best=k;}
+    if(best>=0)scTlCue.push({id,frac:best/Math.max(1,txt.length)});
+  }
+  scTlCue.sort((p,q)=>p.frac-q.frac);
+}
+function scTlProgress(p){
+  if(!scTlCue.length)return;
+  let pick=null;
+  for(const c of scTlCue){if(p>=c.frac-0.02)pick=c.id;}
+  for(const id in scNodes)scNodes[id].focusT=(id===pick)?1:0;
+  scTlFocusOn=pick!=null;
+}
+function scTlClearFocus(){
+  scTlFocusOn=false;
+  for(const id in scNodes)scNodes[id].focusT=0;
+}
+// How much of its own brightness a node keeps while something else holds the light.
+function scTlDim(n){ return scTlFocusOn?(0.38+0.62*(n.focus||0)):1; }
+
+function scTimelineLayout(evs,cx,Uu,Vv,band){
+  const dated=evs.map(e=>({e,d:scTlDate(e.at)})).filter(x=>Number.isFinite(x.d));
+  if(dated.length<2)return null;
+  const lo=Math.min(...dated.map(x=>x.d)), hi=Math.max(...dated.map(x=>x.d));
+  if(!(hi>lo))return null;                       // every event on one day is not a span
+  // The curve takes the width of the picture, not the width of a column, because the room at the
+  // edges is exactly the room the straight version was refusing to use.
+  const x0=cx-Uu*1.14, x1=cx+Uu*1.14;
+  const axisY=band.mid+Vv*0.06;
+  const amp=Math.min(Vv*0.50,118);
+
+  const order=evs.map((e,i)=>({e,i,d:scTlDate(e.at)}))
+                 .sort((a,b)=>(Number.isFinite(a.d)?a.d:lo+(a.i/evs.length)*(hi-lo))
+                            -(Number.isFinite(b.d)?b.d:lo+(b.i/evs.length)*(hi-lo)));
+  const n=order.length, waves=scTlWaves(n);
+  const dAt=o=>Number.isFinite(o.d)?o.d:lo+(o.i/Math.max(1,evs.length-1))*(hi-lo);
+
+  // ---- EASED POSITIONS ALONG THE RUN -----------------------------------------------------------
+  const raw=[]; let sum=0;
+  for(let i=1;i<n;i++){
+    const g=Math.max(0,dAt(order[i])-dAt(order[i-1]));
+    const w=Math.pow(g,SC_TL_EASE); raw.push(w); sum+=w;
+  }
+  const even=1/Math.max(1,n-1), us=[0];
+  let acc=0;
+  for(let i=0;i<raw.length;i++){
+    const share=sum>0?raw[i]/sum:even;
+    acc+=(1-SC_TL_EVEN)*share+SC_TL_EVEN*even;
+    us.push(acc);
+  }
+  const last=us[us.length-1]||1;
+  for(let i=0;i<us.length;i++)us[i]/=last;
+
+  // Any real date placed on the eased run, so today lands where today actually belongs on it.
+  const at=d=>{
+    const t=Math.max(lo,Math.min(hi,d));
+    let k=0; while(k<n-1&&dAt(order[k+1])<t)k++;
+    const a0=dAt(order[k]), a1=dAt(order[Math.min(n-1,k+1)]);
+    const f=(a1>a0)?(t-a0)/(a1-a0):0;
+    const u=us[k]+(us[Math.min(n-1,k+1)]-us[k])*f;
+    return x0+(x1-x0)*u;
+  };
+  const curveY=x=>axisY-amp*Math.sin(((x-x0)/Math.max(1,x1-x0))*Math.PI*waves);
+
+  // ---- PASS ONE: position, and which way the room opens ----------------------------------------
+  for(let i=0;i<n;i++){
+    const o=order[i], e=o.e, u=us[i];
+    e.tx=x0+(x1-x0)*u;
+    e.undated=!Number.isFinite(o.d);
+    e.future=Number.isFinite(o.d)&&o.d>Date.now();
+    e.onCurve=curveY(e.tx);
+    // Canvas y grows downward, so a positive sine puts the curve ABOVE the axis: a crest, with the
+    // open room above it. A trough leaves its room below. The words go where the room is.
+    e.crest=Math.sin(u*Math.PI*waves)>=0?-1:1;
+  }
+
+  // ---- TIERS -----------------------------------------------------------------------------------
+  const P=Math.max(3,Math.min(5,Math.floor((x1-x0)/210)));
+  const score=(o,i)=>{
+    let s=0;
+    if((o.e.kind||'event')!=='event')s+=2.0;     // a gap or a tension is usually what the answer is about
+    if(i===0||i===n-1)s+=1.2;                    // where the run begins and where it ends
+    const l=i>0?us[i]-us[i-1]:1, r=i<n-1?us[i+1]-us[i]:1;
+    s+=Math.min(l,r)*3.5;                        // an event with room around it can carry full words
+    return s;
+  };
+  const primary=new Set(order.map((o,i)=>({i,s:score(o,i)}))
+                             .sort((a,b)=>b.s-a.s).slice(0,P).map(r=>r.i));
+  // CAPTIONS ALTERNATE STRICTLY, seeded by the curve's own opening direction. Letting curvature
+  // alone decide looked right in principle and was measured wrong: on the real Orsa run it put SIX
+  // of eight captions above the line, so one side was starved of width while the other sat empty.
+  // Alternating loads both sides equally, which roughly doubles the room every caption gets, and
+  // because the wave and the sequence run together it still lands captions in the open pockets.
+  const seed=order.length?order[0].e.crest:-1;
+  for(let i=0;i<n;i++){
+    const e=order[i].e;
+    e.tier=primary.has(i)?'p':'s';
+    e.capSide=(i%2===0)?seed:-seed;
+    // The loud voice sits on the curve; the quiet one steps a little off it, outward toward its
+    // own words, so a dot and its caption are never on opposite sides of the line they belong to.
+    // THE STEP OFF THE CURVE IS MEASURED AGAINST THE BAND, NOT AGAINST THE SWING. At amp*0.16+14
+    // it was 33px while the inner band was 26, so wherever the curve reached its lowest point the
+    // quiet dot overshot its own caption and was rendered INSIDE the words. Seen in the render of
+    // 29 September, with "Phase 1 fieldwork begins (Portland)" drawn straight through its own dot.
+    // Deriving the step from SC_TL_BAND_IN means it cannot drift past the band again.
+    e.ty=e.tier==='p'?e.onCurve:(e.onCurve+e.capSide*SC_TL_BAND_IN*0.34);
+    // ...and the words themselves go to their band, whatever the curve is doing underneath.
+    const out=e.tier==='p'?SC_TL_BAND_OUT:SC_TL_BAND_IN;
+    e.capY=axisY+e.capSide*(amp+out);
+    e.stem=Math.abs(e.capY-e.ty);
+  }
+
+  // ---- PASS TWO: HOW WIDE EACH CAPTION MAY BE --------------------------------------------------
+  // THIS IS A SECOND PASS ON PURPOSE. The previous layout fixed a label's width at the moment it
+  // was placed, using the room to whatever had been placed BEFORE it -- so an event dropped into
+  // the same lane afterwards created a collision retroactively, and no fixture caught it because
+  // catching it needs a particular arrival order. Widths are now computed only once every side is
+  // final, which removes the whole class rather than the instance.
+  ctx.font='13.5px "Iowan Old Style",Georgia,serif';
+  // Grouped by BAND, not merely by side, because that is the set a caption can actually collide
+  // with. A loud caption competes only with other loud ones, which is also why they can be wide.
+  const sides={};
+  for(let i=0;i<n;i++){const e=order[i].e;const k=e.capSide+'/'+e.tier;(sides[k]=sides[k]||[]).push(e);}
+  for(const k in sides){
+    const arr=sides[k].sort((a,b)=>a.tx-b.tx);
+    for(let i=0;i<arr.length;i++){
+      const e=arr[i];
+      // AT THE ENDS OF THE RUN THE NEIGHBOUR IS THE EDGE OF THE SCREEN, NOT THE END OF THE CURVE.
+      // Measuring outward to x0 gave the first event a room of exactly zero, because x0 IS where
+      // the first event sits, so the two captions that anchor the whole picture -- the start and
+      // the end of the engagement -- were the only two being dropped. Found by running the layout.
+      const l=i>0?(e.tx-arr[i-1].tx):Math.max(0,e.tx-EDGE_PAD)*2;
+      const r=i<arr.length-1?(arr[i+1].tx-e.tx):Math.max(0,W-EDGE_PAD-e.tx)*2;
+      const room=Math.max(0,Math.min(l,r)-SC_TL_PAD);
+      const want=e.tier==='p'?Math.min(scLabelW()*1.15,240):Math.min(scLabelW()*0.78,168);
+      // No room means NO CAPTION. A dot in the right place in time with no words on it says
+      // "something happened here" truthfully; two captions on top of each other say nothing.
+      e.tw=room>=SC_TL_MIN?Math.min(want,room):0;
+    }
+  }
+  return {x0,x1,lo,hi,axisY,at,curveY,amp,waves};
+}
+
+/* THE CURVE ITSELF carries the RHYTHM of the engagement, which is Weave's own and in none of the
+   references: bright and thick where things were happening, thin and dim through the quiet
+   stretches, dashed after today because what is scheduled has not happened yet. A glance at the
+   line alone says this engagement went quiet for five weeks and has two things left ahead of it,
+   before a single word is read. The dotted tails at each end say the run continues past the frame
+   rather than the world beginning and ending at these eight records. */
+function scTlCurve(tl,now,a,dense){
+  const {x0,x1,lo,hi,at,curveY}=tl;
+  const nowX=(now>=lo&&now<=hi)?at(now):null;
+  const N=140;
+  let prev=null;
+  for(let i=0;i<=N;i++){
+    const x=x0+(x1-x0)*(i/N), y=curveY(x);
+    if(prev){
+      let near=0; for(const d of dense){const dist=Math.abs(d-x); if(dist<80)near+=1-dist/80;}
+      const heat=Math.min(1,near), ahead=nowX!==null&&x>=nowX;
+      ctx.strokeStyle=col([150,175,215],(0.30+heat*0.50)*(ahead?0.62:1)*a);
+      ctx.lineWidth=(1.3+heat*1.7)*(ahead?0.78:1);
+      if(ahead)ctx.setLineDash([4,5]);else ctx.setLineDash([]);
+      ctx.beginPath();ctx.moveTo(prev.x,prev.y);ctx.lineTo(x,y);ctx.stroke();
+    }
+    prev={x,y};
+  }
+  ctx.setLineDash([]);
+  ctx.setLineDash([2,6]);ctx.lineWidth=1.1;ctx.strokeStyle=col([150,175,215],0.30*a);
+  const tail=(xe,dir)=>{
+    const h=20, y1=curveY(xe), sl=(y1-curveY(xe-dir*h))/(dir*h);
+    ctx.beginPath();ctx.moveTo(xe,y1);ctx.lineTo(xe+dir*58,y1+sl*dir*58);ctx.stroke();
+  };
+  tail(x0,-1); tail(x1,1);
+  ctx.setLineDash([]);
+}
+function scTimelineAxis(t){
+ if(scTlAmt<0.05)return;
+ if(!scTl){                                       // undated: the plain rule, as before
+   const Vv=Math.min(H*0.26,300),Uu=Math.min(W*0.30,440);const y=cy+Vv*0.55,x0=cx-Uu*1.1,x1=cx+Uu*1.1;
+   ctx.strokeStyle=col([120,140,175],0.35*scTlAmt);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke();
+   return;
+ }
+ const tl=scTl, {x0,x1,lo,hi,axisY,at,curveY,amp}=tl, a=scTlAmt, now=Date.now();
+ const evs=Object.values(scNodes).filter(n=>n.ap>0.02&&Number.isFinite(scTlDate(n.at)));
+
+ scTlCurve(tl,now,a,evs.map(e=>e.x));
+
+ // THE STEM. A solid hair from the point to its words for the first voice; a dashed drop from the
+ // curve to the hanging dot for the second. The two stems are what separate the registers at a
+ // glance, before any word is read.
+ for(const e of evs){
+   if(e.capY==null)continue;
+   const c=SC_C[e.kind]||SC_C.event, dim=scTlDim(e), onC=curveY(e.x);
+   const sd=e.capSide||-1, cy=(e.cy==null?e.capY:e.cy), se=cy-sd*12;
+   ctx.lineWidth=1;
+   if(e.tw===0){                                  // no words to reach: no leader either
+     if(e.tier==='s'){ctx.strokeStyle=col(c,0.22*e.ap*a*dim);ctx.setLineDash([2,4]);
+       ctx.beginPath();ctx.moveTo(e.x,onC);ctx.lineTo(e.x,e.y);ctx.stroke();ctx.setLineDash([]);}
+     continue;
+   }
+   if(e.tier==='s'){
+     ctx.strokeStyle=col(c,0.24*e.ap*a*dim);ctx.setLineDash([2,4]);
+     ctx.beginPath();ctx.moveTo(e.x,onC);ctx.lineTo(e.x,se);ctx.stroke();ctx.setLineDash([]);
+   }else{
+     ctx.strokeStyle=col(c,0.32*e.ap*a*dim);
+     ctx.beginPath();ctx.moveTo(e.x,e.y+sd*9);ctx.lineTo(e.x,se);ctx.stroke();
+   }
+ }
+
+ // TODAY. Brighter than the curve and labelled, because it is the one mark that divides what has
+ // happened from what is only planned. It runs the height of the swing rather than a fixed stub,
+ // so it reads as a boundary through the whole picture.
+ if(now>=lo&&now<=hi){
+   const x=at(now), yc=curveY(x);
+   ctx.strokeStyle=col([241,217,163],0.5*a);ctx.lineWidth=1;ctx.setLineDash([3,5]);
+   ctx.beginPath();ctx.moveTo(x,yc-amp*0.62);ctx.lineTo(x,yc+amp*0.68);ctx.stroke();ctx.setLineDash([]);
+   ctx.font='10px sans-serif';ctx.fillStyle=col([241,217,163],0.75*a);ctx.textAlign='center';
+   ctx.fillText('today',x,yc+amp*0.68+13);
+ }
+ ctx.textAlign='center';
+}
+let scTlT0=0, scTlDur=0;
+function drawScene(t){
+ scKnotAmt=lp(scKnotAmt,scKnotAmtT,0.05);scTlAmt=lp(scTlAmt,scTlAmtT,0.06);
+ // Prefer the voice's own clock. The browser fallback voice has no clock to read, so an estimate
+ // from the length of the answer carries it instead -- the light still walks the run in order.
+ if(scTl&&scTlCue.length){
+   const au=curAudio;
+   if(au&&isFinite(au.duration)&&au.duration>0&&!au.paused)scTlProgress(au.currentTime/au.duration);
+   else if(scTlT0){
+     const el=(performance.now()-scTlT0)/scTlDur;
+     if(el<=1.25)scTlProgress(el); else {scTlClearFocus();scTlT0=0;}
+   }
+ }
+ for(const id in scNodes){const n=scNodes[id];n.ap=lp(n.ap,n.apT,0.06);n.x=lp(n.x,n.tx,0.08);n.y=lp(n.y,n.ty,0.08);n.focus=lp(n.focus||0,n.focusT||0,0.11);if(n.capY!=null)n.cy=(n.cy==null)?n.capY:lp(n.cy,n.capY,0.08);}
+ scLinks.forEach(l=>{l.ap=lp(l.ap,l.apT,0.06);scStrand(scPos(l.from),scPos(l.to),l.role,t,l.ap);});
+ scKnotDetail(t);scTimelineAxis(t);
+ for(const id in scNodes)scNodeDot(scNodes[id],t);
+}
+
+
+/* the presence: the woven barrel */
+function drawBarrel(t){
+  const unf=unfurl>0?Math.sin((1.8-unfurl)/1.8*Math.PI):0;
+  const breathR=(1+0.045*Math.sin(t*1.05)*P.breath)*(1+0.11*unf)*(1-0.13*thinkAmt+0.028*thinkAmt*Math.sin(t*3.1));
+  const leanX=mouseNX*S*0.16*P.lean,leanY=mouseNY*S*0.10*P.lean,tilt=mouseNY*0.12*P.lean;
+  const ew=clamp(P.warm*0.35,0,1),gB=P.bright;
+  const cc=tcol(ew,1).match(/\d+/g);
+  const cg=ctx.createRadialGradient(cx+leanX,cy+leanY,2,cx+leanX,cy+leanY,S*1.15);
+  cg.addColorStop(0,`rgba(${cc[0]},${cc[1]},${cc[2]},${(0.17*gB).toFixed(3)})`);cg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=cg;ctx.fillRect(0,0,W,H);
+  ctx.globalCompositeOperation='lighter';
+  const threads=[];
+  for(let i=0;i<N;i++){const base=(i/N)*TWO;const pts=[];let zsum=0;
+    for(let m=0;m<M;m++){const v=-1+2*m/(M-1);
+      const sway=0.05*Math.sin(v*2.6+t*1.05+base*3.0)*(1.1-0.5*P.weft);
+      const ang=base+rot+sway+mouseNX*0.45*P.lean;
+      let r=rad(v,breathR)*(1+0.16*unf*0.5);
+      let x3=r*Math.cos(ang),z3=r*Math.sin(ang),y3=v*S*0.98+v*tilt*S;
+      const sc=3.0/(3.0-z3/S);let sx=cx+x3*sc+leanX,sy=cy+y3*sc+leanY;
+      pts.push({sx,sy,z:z3,v});zsum+=z3;}
+    threads.push({i,base,pts,z:zsum/M});}
+  threads.sort((a,b)=>a.z-b.z);
+  for(const th of threads){const db=clamp((th.z/S+1)/2,0,1);
+    const aBase=(0.10+0.5*db)*gB;ctx.lineWidth=Math.max(0.6,0.7+1.0*db);
+    ctx.beginPath();ctx.moveTo(th.pts[0].sx,th.pts[0].sy);for(let m=1;m<M;m++)ctx.lineTo(th.pts[m].sx,th.pts[m].sy);
+    ctx.strokeStyle=tcol(ew,aBase);ctx.stroke();
+    for(let m=0;m<M;m+=2){const p=th.pts[m];const near=Math.exp(-((p.v-weaveY)*(p.v-weaveY))/0.012);
+      const body=0.16+0.10*Math.sin(p.v*22+th.base*4+t*0.5);
+      const wb=(body+near*1.5*P.weft)*db*gB;if(wb<0.06)continue;
+      const sz=0.8+near*1.6+db*0.7;
+      ctx.fillStyle=tcol(Math.min(1,ew+near*0.35),Math.min(0.9,wb*0.5));ctx.fillRect(p.sx-sz/2,p.sy-sz/2,sz,sz);}}
+  {const sv=weaveY,r=rad(sv,breathR),ang=shuttleAng,x3=r*Math.cos(ang),z3=r*Math.sin(ang),sc=3.0/(3.0-z3/S);
+   const sx=cx+x3*sc+leanX,sy=cy+(sv*S*0.98+sv*tilt*S)*sc+leanY,db=clamp((z3/S+1)/2,0,1),sc2=tcol(Math.min(1,ew+0.45),1).match(/\d+/g);
+   const g=ctx.createRadialGradient(sx,sy,0,sx,sy,12+8*db);
+   g.addColorStop(0,`rgba(${sc2[0]},${sc2[1]},${sc2[2]},${(0.9*db*gB).toFixed(3)})`);g.addColorStop(1,'rgba(0,0,0,0)');
+   ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,12+8*db,0,TWO);ctx.fill();}
+  ctx.globalCompositeOperation='source-over';}
+
+function frame(ts){const t=ts*0.001,dt=1/60;requestAnimationFrame(frame);
+  for(const k in T)P[k]=lp(P[k],T[k],0.05);
+  for(let i=0;i<3;i++)moodC[i]=lp(moodC[i],moodCT[i],0.06);moodAmt=lp(moodAmt,moodAmtT,0.06);
+  if(unfurl>0)unfurl-=dt;
+  thinkAmtT=(curState==='thinking')?1:0;thinkAmt=lp(thinkAmt,thinkAmtT,0.08);
+  morph=lp(morph,morphT,0.045);
+  rot+=dt*P.rotS*TWO*0.16;shuttleAng+=dt*(curState==='thinking'?5.5:2.2);
+  weaveY+=weaveDir*dt*0.18*(0.5+P.weft);if(weaveY>1){weaveY=1;weaveDir=-1;}if(weaveY<-1){weaveY=-1;weaveDir=1;}
+  ctx.clearRect(0,0,W,H);
+  const bf=1-clamp(morph,0,1);
+  if(bf>0.015){ctx.save();ctx.globalAlpha=bf;drawBarrel(t);ctx.restore();}
+  if(bf>0.015&&thinkAmt>0.01){ctx.save();ctx.globalAlpha=bf;drawThinking(t);ctx.restore();}
+  if(bf>0.015&&consultNodes.length){ctx.save();ctx.globalAlpha=bf;drawConsult(t);ctx.restore();}
+  if(morph>0.015)drawScene(t);}
+
+/* the scripted conversation, looping: two questions, two real scenes (braid, then timeline) */
+const q=document.getElementById('pq'),said=document.getElementById('psaid'),
+      sline=document.getElementById('psline'),ev=document.getElementById('pev'),notice=document.getElementById('pnotice');
+const RECORDS=[
+  {label:"Slack Thread, #pricing"},{label:"Email From Sales"},{label:"Q2 Review Deck"},
+  {label:"The Signed Contract"},{label:"CRM, Renewal Stage"},{label:"Meeting Notes, Board"}];
+const RECORDS2=[{label:"Slack Thread, #pricing"},{label:"Q2 Review Deck"},{label:"The Signed Contract"}];
+const Q1="Where do we stand with the renewal, and is there anything I'm missing?";
+const A1='The renewal is on track to close in the autumn. The one thing worth your attention: the discount agreed in the #pricing thread sits below the margin floor set in the Q2 review, so <span class="flag">those two need reconciling</span> before it goes out.';
+const Q2="How did that happen?";
+const A2="The discount was agreed in April, a month before the Q2 review set the floor in May. Nobody did anything wrong; the floor did not exist yet. That's the source of the conflict, which is why the fix is a conversation, not a mistake to unwind.";
+const TIMELINE={form:'timeline',timeline:[
+  {label:'Renewal opens',at:'2026-03-05',kind:'event'},
+  {label:'Discount agreed in Slack',at:'2026-04-14',kind:'observed'},
+  {label:'Q2 review sets the floor',at:'2026-05-20',kind:'observed'},
+  {label:'Renewal drafted',at:'2026-08-18',kind:'event'},
+  {label:'Renewal to close',at:'2026-11-16',kind:'event'}]};
+let timers=[];
+function after(ms,fn){timers.push(setTimeout(fn,ms));}
+function typeQ(text,cb){q.classList.add('show');q.innerHTML='';let i=0;
+  (function tick(){ if(i<=text.length){q.innerHTML=text.slice(0,i)+'<span class="cur">|</span>';i++;after(28,tick);} else {q.innerHTML=text;cb&&cb();} })();}
+function showAnswer(html,chips,noticeText){
+  sline.innerHTML=html;
+  ev.innerHTML=chips.map(c=>'<span class="p-chip"><span class="d"></span> '+c+'</span>').join('');
+  notice.textContent=noticeText||'';
+  said.classList.add('show');
+  if(chips.length)after(1200,()=>ev.classList.add('show'));
+  if(noticeText)after(2500,()=>notice.classList.add('show'));}
+function hideAnswer(){said.classList.remove('show');ev.classList.remove('show');notice.classList.remove('show');}
+function cycle(){
+  timers.forEach(clearTimeout);timers=[];
+  setState('resting');setScene({form:'none'});morphT=0;theme(null);clearConsult();hideAnswer();q.classList.remove('show');sline.innerHTML='';
+  // first exchange: the presence answers as it normally would, flagging the conflict in its own words
+  after(1400,()=>{ setState('listening'); typeQ(Q1); });
+  after(4200,()=>{ setState('thinking'); setConsult(RECORDS); });
+  after(8600,()=>{ clearConsult(); setState('speaking'); theme('tension'); showAnswer(A1,["Slack Thread, #pricing","Q2 Review Deck"],"You did not ask, but Finance sign-off is still open."); });
+  // second exchange: Weave lays the same story out on its real timeline
+  after(14600,()=>{ hideAnswer(); theme(null); setState('listening'); typeQ(Q2); });
+  after(17200,()=>{ setState('thinking'); setConsult(RECORDS2); });
+  after(19400,()=>{ q.classList.remove('show'); });           // clear the question before the timeline's top captions land
+  after(20000,()=>{ clearConsult(); setScene(TIMELINE); morphT=1; theme('insight'); scTlBuildCues(A2); scTlT0=performance.now(); scTlDur=6500; });
+  after(22000,()=>{ setState('speaking'); showAnswer(A2,[],null); });
+  // settle and loop
+  after(28400,()=>{ setScene({form:'none'}); morphT=0; hideAnswer(); setState('resting'); theme(null); scTlClearFocus(); });
+  after(30800,cycle);
+}
+resize();requestAnimationFrame(frame);var _st=false;new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&!_st){_st=true;cycle();}});},{threshold:.3}).observe(document.getElementById('thinkstage'));
+})();
+
+// the bigger idea, as a cyclable visual sequence rather than a wall of text
+(function(){
+  var root=document.getElementById('bigidea'); if(!root) return;
+  var cEl=document.getElementById('bicanvas'), ctx=cEl.getContext('2d');
+  var hEl=document.getElementById('bi-h'), pEl=document.getElementById('bi-p'),
+      nEl=document.getElementById('bi-n'), dotsEl=document.getElementById('bi-dots'),
+      txt=root.querySelector('.step-text');
+  var TWO=Math.PI*2, lp=function(a,b,k){return a+(b-a)*k;}, clamp=function(v,a,b){return v<a?a:v>b?b:v;};
+  var ease=function(u){return u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2;};
+  var col=function(c,a){return 'rgba('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+','+a+')';};
+  var mix=function(a,b,k){return [lp(a[0],b[0],k),lp(a[1],b[1],k),lp(a[2],b[2],k)];};
+  var BLUE=[224,200,150],GREEN=[198,182,142],AMBER=[234,188,122],VIOLET=[216,198,152],GOLD=[245,215,150],GRAY=[118,110,94],BASE=[228,206,158];
+  var W,H,DPR,cx,cy,S;
+  function size(){DPR=Math.min(2,window.devicePixelRatio||1);var b=cEl.getBoundingClientRect();W=b.width||560;H=b.height||440;
+    cEl.width=W*DPR;cEl.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);cx=W*.5;cy=H*.5;S=Math.min(W,H);}
+  size(); addEventListener('resize',size);
+
+  function sceneFloor(t,a){
+    var m=ease(Math.sin(t*0.42)*0.5+0.5), n=7, rx=S*0.34, ry=S*0.22;
+    ctx.globalAlpha=a;
+    ctx.strokeStyle=col(GRAY,0.30*(1-m)); ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(cx-rx*1.15,cy); ctx.lineTo(cx+rx*1.15,cy); ctx.stroke();
+    ctx.globalCompositeOperation='lighter';
+    var nodes=[], pal=[BLUE,GREEN,AMBER,VIOLET,BLUE,GREEN,AMBER];
+    for(var i=0;i<n;i++){ var ox=cx+(-rx*1.05+(i/(n-1))*rx*2.1), oy=cy;
+      var ang=(i/n)*TWO-Math.PI/2+0.25, nx=cx+Math.cos(ang)*rx*0.92, ny=cy+Math.sin(ang)*ry*1.05;
+      nodes.push({x:lp(ox,nx,m), y:lp(oy,ny,m)}); }
+    if(m>0.02){ ctx.strokeStyle=col(BASE,0.16*m); ctx.lineWidth=1;
+      for(var i=0;i<n;i++){ var b=nodes[(i+1)%n]; ctx.beginPath(); ctx.moveTo(nodes[i].x,nodes[i].y); ctx.quadraticCurveTo(cx,cy,b.x,b.y); ctx.stroke(); } }
+    for(var i=0;i<n;i++){ var nd=nodes[i], c=mix(GRAY,pal[i],m), gl=6+10*m+2*Math.sin(t*2+i);
+      var g=ctx.createRadialGradient(nd.x,nd.y,0,nd.x,nd.y,gl); g.addColorStop(0,col(c,0.5+0.4*m)); g.addColorStop(1,col(c,0));
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(nd.x,nd.y,gl,0,TWO); ctx.fill();
+      if(m>0.3){ var aa=t*3+i; ctx.strokeStyle=col(c,0.5*m); ctx.lineWidth=1.4;
+        ctx.beginPath(); ctx.moveTo(nd.x,nd.y); ctx.lineTo(nd.x+Math.cos(aa)*5,nd.y+Math.sin(aa)*5); ctx.stroke(); } }
+    ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+  }
+  function sceneWeave(t,a){
+    ctx.globalAlpha=a; ctx.globalCompositeOperation='lighter';
+    var rr=S*0.26, K=18, MM=16, rot=t*0.28, wave=(t*0.5)%1;
+    for(var k=0;k<K;k++){ var a0=k/K*TWO+rot, kp=((k/K)-wave+1)%1, rev=clamp(1.2-kp*2.2,0,1);
+      var base=mix(BASE,GOLD,0.32*rev), pts=[], zsum=0;
+      for(var m=0;m<MM;m++){ var v=-1+2*m/(MM-1), rad=rr*Math.sqrt(Math.max(0,1-v*v));
+        var X=rad*Math.cos(a0), Z=rad*Math.sin(a0), sc=2.8/(2.8-Z/rr); pts.push([cx+X*sc,cy+v*rr*sc]); zsum+=Z; }
+      var db=(zsum/MM/rr+1)/2, al=(0.08+0.4*db)*(0.45+0.55*rev);
+      ctx.strokeStyle=col(base,al); ctx.lineWidth=0.7+0.8*db; ctx.beginPath();
+      for(var m2=0;m2<MM;m2++) m2===0?ctx.moveTo(pts[0][0],pts[0][1]):ctx.lineTo(pts[m2][0],pts[m2][1]); ctx.stroke(); }
+    for(var i=0;i<5;i++){ var u=((t*0.25+i/5)%1), ang=rot+u*6+i, rad=rr*(1.85-1.25*u);
+      var bx=cx+Math.cos(ang)*rad, by=cy+Math.sin(ang)*rad*0.66, ba=Math.sin(u*Math.PI);
+      var g=ctx.createRadialGradient(bx,by,0,bx,by,4); g.addColorStop(0,col(GOLD,0.8*ba)); g.addColorStop(1,col(GOLD,0));
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(bx,by,4,0,TWO); ctx.fill(); }
+    var cg=ctx.createRadialGradient(cx,cy,0,cx,cy,rr*1.4); cg.addColorStop(0,col(BASE,0.4)); cg.addColorStop(1,col(BASE,0));
+    ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(cx,cy,rr*1.4,0,TWO); ctx.fill();
+    ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+  }
+  function scenePartner(t,a){
+    ctx.globalAlpha=a; ctx.globalCompositeOperation='lighter';
+    var L=[cx-S*0.34,cy], R=[cx+S*0.34,cy], topC=[cx,cy-S*0.30], botC=[cx,cy+S*0.30];
+    function qp(p0,c,p1,u){var m=1-u;return [m*m*p0[0]+2*m*u*c[0]+u*u*p1[0], m*m*p0[1]+2*m*u*c[1]+u*u*p1[1]];}
+    // the loop of exchange: an upper and a lower arc joining the two partners
+    ctx.strokeStyle=col(BASE,0.16); ctx.lineWidth=1.4;
+    ctx.beginPath(); ctx.moveTo(L[0],L[1]); ctx.quadraticCurveTo(topC[0],topC[1],R[0],R[1]); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(L[0],L[1]); ctx.quadraticCurveTo(botC[0],botC[1],R[0],R[1]); ctx.stroke();
+    // what they make together, glowing where the loop meets in the middle
+    var pulse=0.42+0.18*Math.sin(t*1.4);
+    var cg=ctx.createRadialGradient(cx,cy,0,cx,cy,S*0.15); cg.addColorStop(0,col(GOLD,pulse)); cg.addColorStop(1,col(GOLD,0));
+    ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(cx,cy,S*0.15,0,TWO); ctx.fill();
+    // give-and-take: a bead each way, never stopping
+    var u1=(t*0.3)%1, b1=qp(L,topC,R,u1), u2=(t*0.3+0.5)%1, b2=qp(R,botC,L,u2);
+    [b1,b2].forEach(function(b){ var g=ctx.createRadialGradient(b[0],b[1],0,b[0],b[1],5);
+      g.addColorStop(0,col(GOLD,0.95)); g.addColorStop(1,col(GOLD,0)); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(b[0],b[1],5,0,TWO); ctx.fill(); });
+    // LEFT, the machine: one node made of many
+    var lat=[[0,0],[-0.55,-0.5],[0.55,-0.5],[-0.65,0.42],[0.6,0.5],[0,-0.85],[0,0.85]];
+    for(var m2=1;m2<lat.length;m2++){ var x=L[0]+lat[m2][0]*S*0.085, y=L[1]+lat[m2][1]*S*0.085;
+      ctx.strokeStyle=col(BASE,0.22); ctx.lineWidth=0.8; ctx.beginPath(); ctx.moveTo(L[0],L[1]); ctx.lineTo(x,y); ctx.stroke();
+      var g=ctx.createRadialGradient(x,y,0,x,y,3.4); g.addColorStop(0,col(BASE,0.85)); g.addColorStop(1,col(BASE,0)); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,3.4,0,TWO); ctx.fill(); }
+    var gl=ctx.createRadialGradient(L[0],L[1],0,L[0],L[1],8); gl.addColorStop(0,col(BASE,0.9)); gl.addColorStop(1,col(BASE,0)); ctx.fillStyle=gl; ctx.beginPath(); ctx.arc(L[0],L[1],8,0,TWO); ctx.fill();
+    // RIGHT, the person: a single, steady, warm presence
+    var hp=0.5+0.5*Math.sin(t*1.5);
+    var gr=ctx.createRadialGradient(R[0],R[1],0,R[0],R[1],12+3*hp); gr.addColorStop(0,col(GOLD,0.95)); gr.addColorStop(1,col(GOLD,0)); ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(R[0],R[1],12+3*hp,0,TWO); ctx.fill();
+    ctx.strokeStyle=col(GOLD,0.22); ctx.lineWidth=1; ctx.beginPath(); ctx.arc(R[0],R[1],S*0.1,0,TWO); ctx.stroke();
+    ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1;
+  }
+
+  var steps=[
+    {h:"Don't wire AI to the old machine.",
+     p:"When electricity arrived, you could trade a candle for a lightbulb and feel modern, and most of what AI is used for today is exactly that trade: the same task as before, lit a little brighter. But the real prize was never the brighter bulb. It was everything a factory could become once it was rebuilt around what electricity made newly possible, which no roomful of candles could ever reach.",
+     draw:sceneFloor},
+    {h:"Let it work in its own way.",
+     p:"Machines crawl when they are forced through processes shaped for human hands. Weave builds its own understanding, reads everything at once, and gets sharper every time you correct it. What looks like magic is just what happens when you stop asking it to act human.",
+     draw:sceneWeave},
+    {h:"A real partnership.",
+     p:"Weave is brilliant at what no room of people could do, and your people keep the judgment only a person can carry. Neither is shrunk to make the other comfortable, and when you bring Weave a question, it usually hands back the start of a solution, not just an answer.",
+     draw:scenePartner}
+  ];
+
+  var cur=0, prev=0, mixv=1, auto=true, autoTimer, resumeT;
+  function renderDots(){ dotsEl.innerHTML=''; steps.forEach(function(s,i){ var b=document.createElement('button'); if(i===cur)b.className='on'; b.onclick=function(){go(i,true);}; dotsEl.appendChild(b); }); }
+  function setText(){ nEl.textContent='0'+(cur+1); hEl.textContent=steps[cur].h; pEl.textContent=steps[cur].p;
+    Array.prototype.forEach.call(dotsEl.children,function(b,i){b.className=i===cur?'on':'';}); }
+  function go(i,user){ i=(i+steps.length)%steps.length; if(i===cur){ return; } prev=cur; cur=i; mixv=0;
+    txt.classList.add('turning'); setTimeout(function(){ setText(); txt.classList.remove('turning'); },360);
+    if(user){ auto=false; clearTimeout(autoTimer); clearTimeout(resumeT); resumeT=setTimeout(function(){auto=true; schedule();},15000); } else { schedule(); } }
+  function schedule(){ clearTimeout(autoTimer); if(!auto) return; autoTimer=setTimeout(function(){ go(cur+1,false); },10500); }
+  document.getElementById('bi-next').onclick=function(){go(cur+1,true);};
+  document.getElementById('bi-prev').onclick=function(){go(cur-1,true);};
+  root.addEventListener('mouseenter',function(){clearTimeout(autoTimer);});
+  root.addEventListener('mouseleave',function(){ if(auto) schedule(); });
+
+  function frame(ts){ requestAnimationFrame(frame); var t=ts*0.001;
+    if(mixv<1) mixv=clamp(mixv+0.05,0,1);
+    ctx.clearRect(0,0,W,H);
+    if(mixv<1 && prev!==cur) steps[prev].draw(t,1-mixv);
+    steps[cur].draw(t,mixv);
+  }
+  renderDots(); setText();
+  var started=false;
+  new IntersectionObserver(function(es){es.forEach(function(e){ if(e.isIntersecting&&!started){started=true; requestAnimationFrame(frame); schedule(); } });},{threshold:.25}).observe(root);
+})();
+
+// the gather: many sources, at varied reach, drawn into the Weave surface itself
+(function(){
+  var cEl=document.getElementById('gather'); if(!cEl) return;
+  var ctx=cEl.getContext('2d');
+  var TWO=Math.PI*2, H=400, W, DPR, cx, cy, S;
+  var lp=function(a,b,k){return a+(b-a)*k;}, clamp=function(v,a,b){return v<a?a:v>b?b:v;};
+  var C_BASE=[112,162,216], C_WARM=[232,150,92], C_THINK=[150,140,235], C_GOLD=[245,205,120];
+  var GREEN=[111,216,154], AMBER=[230,179,90], VIOLET=[183,155,230], BLUE=[96,168,224], FAINT=[120,134,160];
+  var col=function(c,a){return 'rgba('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+','+a+')';};
+  var mixC=function(a,b,k){return [lp(a[0],b[0],k),lp(a[1],b[1],k),lp(a[2],b[2],k)];};
+  // the surface, held at a calm resting posture (never a fetch-machine, just present and weaving)
+  var P={breath:0.95, weft:0.62, bright:0.62, warm:0.16, lean:0.28, taut:1.0};
+  var moodC=C_BASE, moodAmt=0, thinkAmt=0, unfurl=0;
+  var rot=0, weaveY=-1, weaveDir=1, shuttleAng=0, mouseNX=0, mouseNY=0;
+  var N=84, M=40;
+
+  function tcol(ew,a){let r=lp(C_BASE[0],C_WARM[0],ew),g=lp(C_BASE[1],C_WARM[1],ew),b=lp(C_BASE[2],C_WARM[2],ew);
+  r=lp(r,moodC[0],moodAmt);g=lp(g,moodC[1],moodAmt);b=lp(b,moodC[2],moodAmt);
+  const tk=thinkAmt*0.55;r=lp(r,C_THINK[0],tk);g=lp(g,C_THINK[1],tk);b=lp(b,C_THINK[2],tk);
+  return `rgba(${r|0},${g|0},${b|0},${a.toFixed(3)})`;}
+  function rad(v,br){return S*0.96*(1-0.16*v*v)*br*P.taut;}
+  function drawBarrel(t){
+  const unf=unfurl>0?Math.sin((1.8-unfurl)/1.8*Math.PI):0;
+  const breathR=(1+0.045*Math.sin(t*1.05)*P.breath)*(1+0.11*unf)*(1-0.13*thinkAmt+0.028*thinkAmt*Math.sin(t*3.1));
+  const leanX=mouseNX*S*0.16*P.lean,leanY=mouseNY*S*0.10*P.lean,tilt=mouseNY*0.12*P.lean;
+  const ew=clamp(P.warm*0.35,0,1),gB=P.bright;
+  const cc=tcol(ew,1).match(/\d+/g);
+  const cg=ctx.createRadialGradient(cx+leanX,cy+leanY,2,cx+leanX,cy+leanY,S*1.15);
+  cg.addColorStop(0,`rgba(${cc[0]},${cc[1]},${cc[2]},${(0.17*gB).toFixed(3)})`);cg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=cg;ctx.fillRect(0,0,W,H);
+  ctx.globalCompositeOperation='lighter';
+  const threads=[];
+  for(let i=0;i<N;i++){const base=(i/N)*TWO;const pts=[];let zsum=0;
+    for(let m=0;m<M;m++){const v=-1+2*m/(M-1);
+      const sway=0.05*Math.sin(v*2.6+t*1.05+base*3.0)*(1.1-0.5*P.weft);
+      const ang=base+rot+sway+mouseNX*0.45*P.lean;
+      let r=rad(v,breathR)*(1+0.16*unf*0.5);
+      let x3=r*Math.cos(ang),z3=r*Math.sin(ang),y3=v*S*0.98+v*tilt*S;
+      const sc=3.0/(3.0-z3/S);let sx=cx+x3*sc+leanX,sy=cy+y3*sc+leanY;
+      pts.push({sx,sy,z:z3,v});zsum+=z3;}
+    threads.push({i,base,pts,z:zsum/M});}
+  threads.sort((a,b)=>a.z-b.z);
+  for(const th of threads){const db=clamp((th.z/S+1)/2,0,1);
+    const aBase=(0.10+0.5*db)*gB;ctx.lineWidth=Math.max(0.6,0.7+1.0*db);
+    ctx.beginPath();ctx.moveTo(th.pts[0].sx,th.pts[0].sy);for(let m=1;m<M;m++)ctx.lineTo(th.pts[m].sx,th.pts[m].sy);
+    ctx.strokeStyle=tcol(ew,aBase);ctx.stroke();
+    for(let m=0;m<M;m+=2){const p=th.pts[m];const near=Math.exp(-((p.v-weaveY)*(p.v-weaveY))/0.012);
+      const body=0.16+0.10*Math.sin(p.v*22+th.base*4+t*0.5);
+      const wb=(body+near*1.5*P.weft)*db*gB;if(wb<0.06)continue;
+      const sz=0.8+near*1.6+db*0.7;
+      ctx.fillStyle=tcol(Math.min(1,ew+near*0.35),Math.min(0.9,wb*0.5));ctx.fillRect(p.sx-sz/2,p.sy-sz/2,sz,sz);}}
+  {const sv=weaveY,r=rad(sv,breathR),ang=shuttleAng,x3=r*Math.cos(ang),z3=r*Math.sin(ang),sc=3.0/(3.0-z3/S);
+   const sx=cx+x3*sc+leanX,sy=cy+(sv*S*0.98+sv*tilt*S)*sc+leanY,db=clamp((z3/S+1)/2,0,1),sc2=tcol(Math.min(1,ew+0.45),1).match(/\d+/g);
+   const g=ctx.createRadialGradient(sx,sy,0,sx,sy,12+8*db);
+   g.addColorStop(0,`rgba(${sc2[0]},${sc2[1]},${sc2[2]},${(0.9*db*gB).toFixed(3)})`);g.addColorStop(1,'rgba(0,0,0,0)');
+   ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,12+8*db,0,TWO);ctx.fill();}
+  ctx.globalCompositeOperation='source-over';}
+
+  // the sources: many of them, at organic angles and genuinely different distances, so the
+  // picture reads as reach and breadth rather than a tidy ring
+  var defs=[[-2.75,1.95,BLUE],[-2.05,1.35,FAINT],[-1.45,1.82,GREEN],[-0.85,1.2,AMBER],
+            [-0.28,1.72,VIOLET],[0.30,1.34,BLUE],[0.92,1.9,GREEN],[1.5,1.28,FAINT],
+            [2.02,1.7,AMBER],[2.62,1.22,VIOLET],[3.02,1.86,BLUE],[-3.02,1.5,AMBER],
+            [1.2,1.6,FAINT],[-1.05,1.95,VIOLET]];
+  var srcs=defs.map(function(d,i){return {ang:d[0], reach:d[1], col:d[2], phase:(i*0.618)%1, spd:0.11+0.03*(i%4)};});
+
+  function gather(t){
+    ctx.globalCompositeOperation='lighter';
+    for(var i=0;i<srcs.length;i++){ var s=srcs[i];
+      var sx=cx+Math.cos(s.ang)*S*s.reach*1.28, sy=cy+Math.sin(s.ang)*S*s.reach*0.86;
+      var mx=(sx+cx)/2+Math.cos(s.ang+1.4)*S*0.14, my=(sy+cy)/2+Math.sin(s.ang+1.4)*S*0.14;
+      ctx.strokeStyle=col(s.col,0.13); ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(sx,sy); ctx.quadraticCurveTo(mx,my,cx,cy); ctx.stroke();
+      var sg=ctx.createRadialGradient(sx,sy,0,sx,sy,7); sg.addColorStop(0,col(s.col,0.85)); sg.addColorStop(1,col(s.col,0));
+      ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(sx,sy,7,0,TWO); ctx.fill();
+      var u=((t*s.spd+s.phase)%1), ba=Math.sin(u*Math.PI);
+      var bx=(1-u)*(1-u)*sx+2*(1-u)*u*mx+u*u*cx, by=(1-u)*(1-u)*sy+2*(1-u)*u*my+u*u*cy;
+      var bg=ctx.createRadialGradient(bx,by,0,bx,by,4.5); bg.addColorStop(0,col(mixC(s.col,C_GOLD,0.25),0.9*ba)); bg.addColorStop(1,col(s.col,0));
+      ctx.fillStyle=bg; ctx.beginPath(); ctx.arc(bx,by,4.5,0,TWO); ctx.fill();
+    }
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  function size(){DPR=Math.min(2,window.devicePixelRatio||1);var b=cEl.getBoundingClientRect();W=b.width||440;
+    cEl.width=W*DPR;cEl.height=H*DPR;cEl.style.height=H+'px';ctx.setTransform(DPR,0,0,DPR,0,0);
+    cx=W*0.5;cy=H*0.5;S=Math.min(W,H)*0.24;}
+  size(); addEventListener('resize',size);
+  cEl.addEventListener('pointermove',function(e){var r=cEl.getBoundingClientRect();
+    mouseNX=clamp(((e.clientX-r.left)/r.width)*2-1,-1,1);mouseNY=clamp(((e.clientY-r.top)/r.height)*2-1,-1,1);});
+  cEl.addEventListener('pointerleave',function(){mouseNX=0;mouseNY=0;});
+
+  var last=0;
+  function frame(ts){ requestAnimationFrame(frame);
+    var t=ts*0.001, dt=Math.min(0.05,(ts-last)*0.001||0); last=ts;
+    rot+=dt*0.05*TWO*0.16; shuttleAng+=dt*2.2;
+    weaveY+=weaveDir*dt*0.16*(0.5+P.weft); if(weaveY>1){weaveY=1;weaveDir=-1;} if(weaveY<-1){weaveY=-1;weaveDir=1;}
+    ctx.clearRect(0,0,W,H);
+    gather(t);
+    drawBarrel(t);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
